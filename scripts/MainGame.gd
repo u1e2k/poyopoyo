@@ -620,66 +620,78 @@ func _draw_single_puyo(center_pos: Vector2, type: int, col: int = -1, row: int =
 	var rx = base_radius * scale_x
 	var ry = base_radius * scale_y
 
-	# ドロップシャドウ
-	var shadow_offset = Vector2(0, 3.5)
-	draw_circle(center_pos + shadow_offset, rx * 0.92, Color(0, 0, 0, 0.28))
-
-	# 有機的ゼリーコネクタ (消去中や落下中は解除)
+	# 有効な同色隣接セルの検索 (消去中や落下中を除く)
+	var valid_neighbors: Array[Dictionary] = []
 	if col != -1 and row != -1 and not is_clearing:
-		var neighbors = [
+		var check_dirs = [
 			{"dir": Vector2i(1, 0), "offset": Vector2(GameConstants.CELL_SIZE / 2.0, 0)},
 			{"dir": Vector2i(-1, 0), "offset": Vector2(-GameConstants.CELL_SIZE / 2.0, 0)},
 			{"dir": Vector2i(0, 1), "offset": Vector2(0, GameConstants.CELL_SIZE / 2.0)},
 			{"dir": Vector2i(0, -1), "offset": Vector2(0, -GameConstants.CELL_SIZE / 2.0)}
 		]
-		for n in neighbors:
+		for n in check_dirs:
 			var nc = col + n["dir"].x
 			var nr = row + n["dir"].y
-			# 隣接セルが落下中 (まだ着地していない) ならコネクタを繋がない
-			if falling_map.has(Vector2i(nc, nr)):
-				continue
-			if grid_model.is_valid_coord(nc, nr) and grid_model.get_cell(nc, nr) == type:
-				var half_w = 12.0
-				if n["dir"].x != 0:
-					var bridge_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y - half_w, abs(n["offset"].x), half_w * 2)
-					draw_rect(bridge_rect, shadow_col)
-					var inner_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y - half_w + 1.5, abs(n["offset"].x), (half_w - 1.5) * 2)
-					draw_rect(inner_rect, base_col)
-				elif n["dir"].y != 0:
-					var bridge_rect = Rect2(center_pos.x - half_w, center_pos.y + min(0, n["offset"].y), half_w * 2, abs(n["offset"].y))
-					draw_rect(bridge_rect, shadow_col)
-					var inner_rect = Rect2(center_pos.x - half_w + 1.5, center_pos.y + min(0, n["offset"].y), (half_w - 1.5) * 2, abs(n["offset"].y))
-					draw_rect(inner_rect, base_col)
+			if not falling_map.has(Vector2i(nc, nr)) and grid_model.is_valid_coord(nc, nr) and grid_model.get_cell(nc, nr) == type:
+				valid_neighbors.append(n)
 
-	# 外枠/下部シャドウ
+	# 1. ドロップシャドウ (本体 + 接続部)
+	var shadow_offset = Vector2(0, 3.5)
+	draw_circle(center_pos + shadow_offset, rx * 0.92, Color(0, 0, 0, 0.28))
+	for n in valid_neighbors:
+		var bridge_half = rx * 0.82
+		if n["dir"].x != 0:
+			var s_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y + shadow_offset.y - bridge_half * 0.9, abs(n["offset"].x), bridge_half * 1.8)
+			draw_rect(s_rect, Color(0, 0, 0, 0.28))
+		elif n["dir"].y != 0:
+			var s_rect = Rect2(center_pos.x - bridge_half * 0.9, center_pos.y + shadow_offset.y + min(0, n["offset"].y), bridge_half * 1.8, abs(n["offset"].y))
+			draw_rect(s_rect, Color(0, 0, 0, 0.28))
+
+	# 2. 外枠 / 立体アンダーシャドウ (本体 + 接続部)
 	draw_circle(center_pos, rx, shadow_col)
+	for n in valid_neighbors:
+		var bridge_half = rx * 0.82
+		if n["dir"].x != 0:
+			var b_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y - bridge_half, abs(n["offset"].x), bridge_half * 2.0)
+			draw_rect(b_rect, shadow_col)
+		elif n["dir"].y != 0:
+			var b_rect = Rect2(center_pos.x - bridge_half, center_pos.y + min(0, n["offset"].y), bridge_half * 2.0, abs(n["offset"].y))
+			draw_rect(b_rect, shadow_col)
 
-	# メインボディ
+	# 3. メインボディ (本体 + 接続部が完全に溶け合って一体化)
 	var body_pos = center_pos + Vector2(0, -1.5)
 	draw_circle(body_pos, rx - 1.2, base_col)
+	for n in valid_neighbors:
+		var inner_half = rx * 0.82 - 1.4
+		if n["dir"].x != 0:
+			var in_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y - 1.5 - inner_half, abs(n["offset"].x), inner_half * 2.0)
+			draw_rect(in_rect, base_col)
+		elif n["dir"].y != 0:
+			var in_rect = Rect2(center_pos.x - inner_half, center_pos.y - 1.5 + min(0, n["offset"].y), inner_half * 2.0, abs(n["offset"].y))
+			draw_rect(in_rect, base_col)
 
-	# 上部内側グロー
+	# 4. 上部内側グロー
 	var top_glow_pos = center_pos + Vector2(0, -ry * 0.35)
 	var glow_col = highlight_col
 	glow_col.a = 0.45
 	draw_circle(top_glow_pos, rx * 0.65, glow_col)
 
-	# 下部リムライト
+	# 5. 下部リムライト
 	var rim_pos = center_pos + Vector2(0, ry * 0.5)
 	var rim_col = highlight_col
 	rim_col.a = 0.35
 	draw_circle(rim_pos, rx * 0.45, rim_col)
 
-	# メイン・スペキュラハイライト
+	# 6. メイン・スペキュラハイライト
 	var main_spec_pos = center_pos + Vector2(-rx * 0.38, -ry * 0.38)
 	draw_circle(main_spec_pos, rx * 0.28, Color(1, 1, 1, 0.85))
 	draw_circle(main_spec_pos + Vector2(-1, -1), rx * 0.14, Color(1, 1, 1, 0.95))
 
-	# サブ・ハイライト
+	# 7. サブ・ハイライト
 	var sub_spec_pos = center_pos + Vector2(rx * 0.42, ry * 0.32)
 	draw_circle(sub_spec_pos, rx * 0.12, Color(1, 1, 1, 0.55))
 
-	# 表情
+	# 8. 表情
 	if type != GameConstants.PuyoType.GARBAGE:
 		_draw_puyo_face(center_pos, rx, ry, col, row, is_clearing)
 

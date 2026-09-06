@@ -487,48 +487,62 @@ func _draw_battle_puyo(center_pos: Vector2, type: int, pl: BattlePlayer, col: in
 		if int(game_time * 24.0) % 2 == 0:
 			base_col = highlight_col
 
-	# 1. ドロップシャドウ
-	draw_circle(center_pos + Vector2(0, 2.5), rx * 0.9, Color(0, 0, 0, 0.28))
-
-	# 2. 同色ぷよ同士の有機的ゼリーコネクタ (連結の見える化)
+	# 有効な同色隣接セルの検索 (消去中や落下中を除く)
+	var valid_neighbors: Array[Dictionary] = []
 	if pl != null and col != -1 and row != -1 and not is_clearing and type != GameConstants.PuyoType.GARBAGE:
-		var neighbors = [
+		var check_dirs = [
 			{"dir": Vector2i(1, 0), "offset": Vector2(CELL_SIZE / 2.0, 0)},
 			{"dir": Vector2i(-1, 0), "offset": Vector2(-CELL_SIZE / 2.0, 0)},
 			{"dir": Vector2i(0, 1), "offset": Vector2(0, CELL_SIZE / 2.0)},
 			{"dir": Vector2i(0, -1), "offset": Vector2(0, -CELL_SIZE / 2.0)}
 		]
-		for n in neighbors:
+		for n in check_dirs:
 			var nc = col + n["dir"].x
 			var nr = row + n["dir"].y
-			# 隣接セルが落下中 (まだ着地していない) ならコネクタを繋がない
-			if falling_map.has(Vector2i(nc, nr)):
-				continue
-			if pl.grid_model.is_valid_coord(nc, nr) and pl.grid_model.get_cell(nc, nr) == type:
-				var half_w = 9.0
-				if n["dir"].x != 0:
-					var bridge_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y - half_w, abs(n["offset"].x), half_w * 2)
-					draw_rect(bridge_rect, shadow_col)
-					var inner_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y - half_w + 1.2, abs(n["offset"].x), (half_w - 1.2) * 2)
-					draw_rect(inner_rect, base_col)
-				elif n["dir"].y != 0:
-					var bridge_rect = Rect2(center_pos.x - half_w, center_pos.y + min(0, n["offset"].y), half_w * 2, abs(n["offset"].y))
-					draw_rect(bridge_rect, shadow_col)
-					var inner_rect = Rect2(center_pos.x - half_w + 1.2, center_pos.y + min(0, n["offset"].y), (half_w - 1.2) * 2, abs(n["offset"].y))
-					draw_rect(inner_rect, base_col)
+			if not falling_map.has(Vector2i(nc, nr)) and pl.grid_model.is_valid_coord(nc, nr) and pl.grid_model.get_cell(nc, nr) == type:
+				valid_neighbors.append(n)
 
-	# 3. 外枠 / 立体アンダーシャドウ
+	# 1. ドロップシャドウ (本体 + 接続部)
+	var shadow_offset = Vector2(0, 2.5)
+	draw_circle(center_pos + shadow_offset, rx * 0.9, Color(0, 0, 0, 0.28))
+	for n in valid_neighbors:
+		var bridge_half = rx * 0.82
+		if n["dir"].x != 0:
+			var s_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y + shadow_offset.y - bridge_half * 0.9, abs(n["offset"].x), bridge_half * 1.8)
+			draw_rect(s_rect, Color(0, 0, 0, 0.28))
+		elif n["dir"].y != 0:
+			var s_rect = Rect2(center_pos.x - bridge_half * 0.9, center_pos.y + shadow_offset.y + min(0, n["offset"].y), bridge_half * 1.8, abs(n["offset"].y))
+			draw_rect(s_rect, Color(0, 0, 0, 0.28))
+
+	# 2. 外枠 / 立体アンダーシャドウ (本体 + 接続部)
 	draw_circle(center_pos, rx, shadow_col)
+	for n in valid_neighbors:
+		var bridge_half = rx * 0.82
+		if n["dir"].x != 0:
+			var b_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y - bridge_half, abs(n["offset"].x), bridge_half * 2.0)
+			draw_rect(b_rect, shadow_col)
+		elif n["dir"].y != 0:
+			var b_rect = Rect2(center_pos.x - bridge_half, center_pos.y + min(0, n["offset"].y), bridge_half * 2.0, abs(n["offset"].y))
+			draw_rect(b_rect, shadow_col)
 
-	# 4. メインボディ
-	draw_circle(center_pos + Vector2(0, -1.2), rx - 1.0, base_col)
+	# 3. メインボディ (本体 + 接続部が完全に溶け合って一体化)
+	var body_pos = center_pos + Vector2(0, -1.2)
+	draw_circle(body_pos, rx - 1.0, base_col)
+	for n in valid_neighbors:
+		var inner_half = rx * 0.82 - 1.0
+		if n["dir"].x != 0:
+			var in_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y - 1.2 - inner_half, abs(n["offset"].x), inner_half * 2.0)
+			draw_rect(in_rect, base_col)
+		elif n["dir"].y != 0:
+			var in_rect = Rect2(center_pos.x - inner_half, center_pos.y - 1.2 + min(0, n["offset"].y), inner_half * 2.0, abs(n["offset"].y))
+			draw_rect(in_rect, base_col)
 
-	# 5. 上部インナーグロー
+	# 4. 上部インナーグロー
 	var glow_col = highlight_col
 	glow_col.a = 0.42
 	draw_circle(center_pos + Vector2(0, -ry * 0.35), rx * 0.65, glow_col)
 
-	# 6. 下部リムライト
+	# 5. 下部リムライト
 	var rim_col = highlight_col
 	rim_col.a = 0.32
 	draw_circle(center_pos + Vector2(0, ry * 0.5), rx * 0.45, rim_col)
