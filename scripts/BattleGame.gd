@@ -105,13 +105,11 @@ func start_match() -> void:
 ## お邪魔ぷよ送信 & 相殺 (Offsetting) ロジック
 ## -------------------------------------------------------------
 func _on_p1_send_garbage(amount: int) -> void:
-	# 1. 自身の保留分と相殺
 	if p1.pending_garbage > 0:
 		var offset = min(p1.pending_garbage, amount)
 		p1.pending_garbage -= offset
 		amount -= offset
 
-	# 2. 余剰分を相手へ送る
 	if amount > 0:
 		p2.pending_garbage += amount
 		_show_banner("1P: %d GARBAGE!" % amount)
@@ -245,7 +243,7 @@ func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -
 	var choke_x = fx + GameConstants.SPAWN_COL * CELL_SIZE
 	draw_line(Vector2(choke_x, fy), Vector2(choke_x + CELL_SIZE, fy), Color(0.96, 0.26, 0.35, 0.8), 2.5)
 
-	# 確定ぷよ描画
+	# 確定ぷよ描画 (落下完了済み)
 	for c in range(GameConstants.COLS):
 		for r in range(1, GameConstants.ROWS):
 			var type = pl.grid_model.get_cell(c, r)
@@ -256,6 +254,12 @@ func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -
 					if Vector2i(c, r) in pl.last_cleared_info["cleared_cells"]:
 						is_clearing = true
 				_draw_mini_puyo(center, type, is_clearing)
+
+	# 上空から落下中のお邪魔ぷよ描画
+	for g in pl.active_falling_garbage:
+		if not g["is_landed"] and g["delay"] <= 0.0:
+			var center = Vector2(fx + (g["col"] + 0.5) * CELL_SIZE, fy + g["current_y"])
+			_draw_mini_puyo(center, GameConstants.PuyoType.GARBAGE, false)
 
 	# 操作中ツモ描画
 	if pl.pivot_type != GameConstants.PuyoType.EMPTY:
@@ -280,7 +284,7 @@ func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -
 		draw_string(ThemeDB.fallback_font, Vector2(fx + 8, fy - 18), "SAFE", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, GameConstants.COLOR_TEXT_MUTED)
 
 func _draw_center_info() -> void:
-	# 1P NEXT (中央左)
+	# 1P NEXT
 	draw_string(ThemeDB.fallback_font, Vector2(235, 120), "1P NEXT", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, GameConstants.COLOR_TEXT_PRIMARY)
 	var n1_box = Rect2(230, 130, 75, 120)
 	draw_rect(n1_box, GameConstants.COLOR_PANEL_BG)
@@ -290,7 +294,7 @@ func _draw_center_info() -> void:
 		_draw_mini_puyo(Vector2(267, 165), n["child"])
 		_draw_mini_puyo(Vector2(267, 205), n["pivot"])
 
-	# CPU NEXT (中央右)
+	# CPU NEXT
 	draw_string(ThemeDB.fallback_font, Vector2(415, 120), "CPU NEXT", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.40, 0.45))
 	var n2_box = Rect2(415, 130, 75, 120)
 	draw_rect(n2_box, GameConstants.COLOR_PANEL_BG)

@@ -55,6 +55,9 @@ var last_cleared_info: Dictionary = {}
 var clear_anim_progress: float = 0.0
 var is_alive: bool = true
 
+# お邪魔ぷよ落下アニメーション用
+var active_falling_garbage: Array = []
+
 func _ready() -> void:
 	grid_model = GridModel.new()
 	if player_type == PlayerType.CPU:
@@ -67,6 +70,7 @@ func init_game() -> void:
 	max_chain = 0
 	pending_garbage = 0
 	total_chain_score = 0
+	active_falling_garbage.clear()
 	is_alive = true
 
 	next_queue.clear()
@@ -159,22 +163,18 @@ func _process_falling(delta: float) -> void:
 
 func _process_cpu_ai(delta: float) -> void:
 	ai_action_timer += delta
-	# 0.08秒ごとに1ステップ操作（人間らしいスムーズな動作）
 	if ai_action_timer >= 0.08:
 		ai_action_timer = 0.0
 
-		# 回転操作
 		if child_dir != target_rot:
 			rotate_right()
 			return
 
-		# 左右移動操作
 		if pivot_pos.x < target_col:
 			move_right()
 		elif pivot_pos.x > target_col:
 			move_left()
 		else:
-			# 目標位置に到達したら少し加速（ソフトドロップ相当）
 			if _can_move(pivot_pos + Vector2i(0, 1), child_dir):
 				pivot_pos.y += 1
 				_update_grounded_state()
@@ -308,14 +308,12 @@ func _start_match_check() -> void:
 		state_timer = 0.0
 		clear_anim_progress = 0.0
 	else:
-		# 連鎖終了：獲得スコアに応じたお邪魔ぷよ数を計算して相手へ送信
 		if total_chain_score > 0:
-			var garbage_to_send = total_chain_score / 70  # 70点 = 1個
+			var garbage_to_send = total_chain_score / 70
 			if garbage_to_send > 0:
 				garbage_sent.emit(garbage_to_send)
 			total_chain_score = 0
 
-		# 保留されているお邪魔ぷよがあれば落下処理
 		if pending_garbage > 0:
 			_start_garbage_drop()
 		else:
@@ -328,38 +326,84 @@ func _process_clear_anim(delta: float) -> void:
 		last_cleared_info.clear()
 		_start_drop_free()
 
+## -------------------------------------------------------------
+## お邪魔ぷよの落下アニメーション処理
+## -------------------------------------------------------------
 func _start_garbage_drop() -> void:
 	current_state = State.GARBAGE_DROP
 	state_timer = 0.0
+	active_falling_garbage.clear()
 
-	# 最大30個（5段分）ずつ落下
 	var drop_amount = min(pending_garbage, 30)
 	pending_garbage -= drop_amount
 
-	# 列のランダム順序で段ごとにお邪魔ぷよを配置
+	# 各列の空き状況を把握
+	var column_targets: Array = []
+	for c in range(GameConstants.COLS):
+		var target_r = GameConstants.ROWS - 1
+		while target_r >= 0 and not grid_model.is_empty(c, target_r):
+			target_r -= 1
+		column_targets.append(target_r)
+
+	# 列順をシャッフルしてお邪魔ぷよを割り当て
 	var cols_order = [0, 1, 2, 3, 4, 5]
 	cols_order.shuffle()
 
 	var placed = 0
-	var attempts = 0
-	while placed < drop_amount and attempts < 10:
-		attempts += 1
-		var placed_in_row = false
+	var row_step = 0
+	while placed < drop_amount and row_step < 5:
 		for c in cols_order:
 			if placed >= drop_amount:
 				break
-			if grid_model.is_empty(c, 0):
-				grid_model.set_cell(c, 0, GameConstants.PuyoType.GARBAGE)
+			var target_r = column_targets[c]
+			if target_r >= 0:
+				# 落下オブジェクト生成
+				active_falling_garbage.append({
+					"col": c,
+					"target_row": target_r,
+					"current_y": -40.0 - (row_step * 35.0) - randf_range(0, 15), # 上空からスタート
+					"speed": randf_range(150.0, 250.0),
+					"delay": (row_step * 0.06) + (c * 0.015),
+					"is_landed": false
+				})
+				column_targets[c] -= 1
 				placed += 1
-				placed_in_row = true
-		grid_model.apply_gravity()
-		if not placed_in_row:
-			break
+		row_step += 1
 
 func _process_garbage_drop(delta: float) -> void:
 	state_timer += delta
-	if state_timer >= 0.25:
-		_start_match_check()
+	var all_landed = true
+
+	for p in active_falling_garbage:
+		if p["is_landed"]:
+			continue
+
+		if p["delay"] > 0.0:
+			p["delay"] -= delta
+			all_landed = false
+			continue
+
+		# 重力加速
+		p["speed"] += 1400.0 * delta
+		p["current_y"] += p["speed"] * delta
+
+		var target_y = (p["target_row"] - 1 + 0.5) * 26.0  # セルサイズ26px基準
+		if p["current_y"] >= target_y:
+			p["current_y"] = target_y
+			p["is_landed"] = true
+			# 盤面に正式配置
+			grid_model.set_cell(p["col"], p["target_row"], GameConstants.PuyoType.GARBAGE)
+		else:
+			all_landed = false
+
+	# 全て着地したら少し余韻（0.12秒）のあと消去判定へ
+	if all_landed and active_falling_garbage.size() > 0:
+		if state_timer >= 0.15:
+			active_falling_garbage.clear()
+			grid_model.apply_gravity()
+			_start_match_check()
+	elif active_falling_garbage.size() == 0:
+		_transition_to_spawn()
 
 func _calculate_score(info: Dictionary) -> int:
 	var cleared_count = info["total_cleared"]
