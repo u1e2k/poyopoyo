@@ -1,7 +1,35 @@
 # PoyoPoyo (ぽよぽよ) 🎮
 
-**Godot 4.x** で制作された、正方形画面（720×720）および物理コントローラーに特化したスタンドアロン型1P落ち物パズルゲームです。  
-ポータブルゲーム機（**ANBERNIC RG Rotate** 等）やPC環境で、快適なアーケードライクな操作感とツヤツヤのジェリー質感をお楽しみいただけます。
+<div align="center">
+  <img src="docs/images/icon.svg" width="128" height="128" alt="PoyoPoyo Icon" style="border-radius: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);" />
+  <br />
+  <strong>正方形画面 (720×720) ＆ 物理コントローラー特化 落ち物パズルゲーム</strong>
+  <br />
+  <em>Made with Godot Engine 4.x</em>
+</div>
+
+---
+
+## 📸 スクリーンショット
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>タイトル画面 (アトラクトデモ対応)</b></td>
+      <td align="center"><b>1P ENDLESS (とことんモード)</b></td>
+    </tr>
+    <tr>
+      <td><img src="docs/images/title_screen.png" width="340" alt="Title Screen" /></td>
+      <td><img src="docs/images/gameplay_1p.png" width="340" alt="1P Gameplay" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><b>VS CPU (AI対戦・お邪魔相殺・34px大迫力フィールド)</b></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><img src="docs/images/gameplay_battle.png" width="480" alt="Battle Gameplay" /></td>
+    </tr>
+  </table>
+</div>
 
 ---
 
@@ -13,9 +41,13 @@
 - **VS CPU（対戦モード）**
   - 自律思考型AI（ヒューリスティック評価・全合法手シミュレーション）を搭載した対戦モード。
   - お邪魔ぷよの送り合い、**相殺（Offsetting）システム**、上空からの重力落下アニメーションを完全実装。
+  - お邪魔ぷよは丸いぷよと区別しやすい **四角い立体石ブロック（岩）** デザイン。
 - **アトラクト・デモモード（CPU vs CPU）**
   - タイトル画面で8秒間無操作のとき自動で開始されるCPU同士の対戦デモプレイ。
   - いずれかのボタンを押すだけで即座にタイトル画面へ復帰。
+- **シームレスな有機的ゼリー結合**
+  - 同色ぷよ同士が接触すると、外枠がひと繋がりになり **カプセル／ひょうたん型スライム** として滑らかに融合。
+  - ちぎり落下（自由落下）時は着地するまで結合せず、着地した瞬間にぷるんと吸着。
 - **アーケードライクな操作フィール**
   - 自作タイマーによる **DAS（長押し判定: 0.18秒）** と **ARR（連続移動間隔: 0.033秒）** 制御。
   - 壁際や接地ブロックに挟まれた際の **壁蹴り補正（Kick）**。
@@ -48,12 +80,12 @@
 - **解像度**: 720 × 720 px（アスペクト比 1:1）
 - **ストレッチモード**: `canvas_items` / `keep`
 - **1P ENDLESS**:
-  - フィールド: 横6列 × 縦13段（表示12段 ＋ 出現・窒息枠1段、1マス 48×48px）
+  - フィールド: 横6列 × 縦13段（表示12段 ＋ 出現・窒息枠1段、1マス 52×52px）
   - 左パネル: NEXT1 / NEXT2 表示 ＆ 操作ガイド
   - 右パネル: SCORE / HI-SCORE / MAX CHAIN / TIME
 - **VS CPU**:
-  - 左: 1Pフィールド (セル 26×26px) / 右: CPUフィールド
-  - 中央: 1P・CPU NEXT / 勝敗カウント / お邪魔予告トレイ
+  - 左: 1Pフィールド (セル 34×34px) / 右: CPUフィールド
+  - 中央: 1P・CPU NEXT / 勝敗カウント / お邪魔予告トレイ（頭上）
 
 ---
 
@@ -64,6 +96,8 @@ poyopoyo/
 ├── project.godot            # プロジェクト設定・InputMap・解像度 (720x720)
 ├── export_presets.cfg       # Android向けエクスポート設定
 ├── icon.svg                 # キュートなジェリーぷよアプリアイコン
+├── docs/
+│   └── images/              # README用スクリーンショット・アイコン
 ├── scenes/
 │   ├── TitleScreen.tscn     # タイトル画面（1P ENDLESS / VS CPU / QUIT）
 │   ├── MainGame.tscn        # 1Pエンドレスメインシーン
@@ -103,3 +137,4 @@ adb install -r build/poyopoyo.apk
 ## 📄 ライセンス
 
 MIT License
+
