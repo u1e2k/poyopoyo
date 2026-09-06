@@ -592,6 +592,11 @@ func _draw_single_puyo(center_pos: Vector2, type: int, col: int = -1, row: int =
 	if type == GameConstants.PuyoType.EMPTY:
 		return
 
+	# お邪魔ぷよは四角い石ブロックとして描画
+	if type == GameConstants.PuyoType.GARBAGE:
+		_draw_stone_block(center_pos, GameConstants.CELL_SIZE, is_clearing, custom_scale, col, row)
+		return
+
 	var base_col: Color = GameConstants.PUYO_COLORS.get(type, Color.WHITE)
 	var shadow_col: Color = GameConstants.PUYO_SHADOW_COLORS.get(type, Color(0.2, 0.2, 0.2))
 	var highlight_col: Color = GameConstants.PUYO_HIGHLIGHT_COLORS.get(type, Color.WHITE)
@@ -852,3 +857,56 @@ func _grid_to_screen(col: int, row: int) -> Vector2:
 	var x = GameConstants.FIELD_X + (col + 0.5) * GameConstants.CELL_SIZE
 	var y = GameConstants.FIELD_Y + (row - 1 + 0.5) * GameConstants.CELL_SIZE
 	return Vector2(x, y)
+
+## -------------------------------------------------------------
+## 四角い石ブロック (お邪魔ぷよ) 描画
+## -------------------------------------------------------------
+func _draw_stone_block(center_pos: Vector2, size: float, is_clearing: bool = false, custom_scale: Vector2 = Vector2.ONE, col: int = -1, row: int = -1) -> void:
+	var half_w = (size * 0.5 - 2.0) * custom_scale.x
+	var half_h = (size * 0.5 - 2.0) * custom_scale.y
+
+	# 1. 影 (ドロップシャドウ)
+	var shadow_rect = Rect2(center_pos.x - half_w, center_pos.y - half_h + 3.0, half_w * 2.0, half_h * 2.0)
+	draw_rect(shadow_rect, Color(0, 0, 0, 0.32))
+
+	# 石の色設定
+	var stone_dark = Color(0.24, 0.26, 0.32)       # 外枠・底面シャドウ
+	var stone_body = Color(0.55, 0.58, 0.65)       # 石表面ベース
+	var stone_light = Color(0.84, 0.88, 0.95)      # 上部面取りハイライト
+	var stone_bevel_shadow = Color(0.34, 0.37, 0.44) # 下部面取り
+
+	if is_clearing:
+		if int(clear_anim_progress * 24.0) % 2 == 0:
+			stone_body = Color(0.96, 0.96, 1.0)
+			stone_light = Color(1.0, 1.0, 1.0)
+
+	# 2. 外枠・アンダーシャドウ
+	var base_rect = Rect2(center_pos.x - half_w, center_pos.y - half_h, half_w * 2.0, half_h * 2.0)
+	draw_rect(base_rect, stone_dark)
+
+	# 3. メイン石ブロックボディ (少し内側)
+	var inner_rect = Rect2(center_pos.x - half_w + 2.0, center_pos.y - half_h + 2.0, (half_w - 2.0) * 2.0, (half_h - 2.0) * 2.0)
+	draw_rect(inner_rect, stone_body)
+
+	# 4. 立体的な石の面取り (Bevel edges)
+	# 上面・左面ハイライトライン
+	draw_line(Vector2(inner_rect.position.x, inner_rect.position.y), Vector2(inner_rect.position.x + inner_rect.size.x, inner_rect.position.y), stone_light, 2.2)
+	draw_line(Vector2(inner_rect.position.x, inner_rect.position.y), Vector2(inner_rect.position.x, inner_rect.position.y + inner_rect.size.y), stone_light, 2.2)
+	# 下面・右面シャドウライン
+	draw_line(Vector2(inner_rect.position.x, inner_rect.position.y + inner_rect.size.y), Vector2(inner_rect.position.x + inner_rect.size.x, inner_rect.position.y + inner_rect.size.y), stone_bevel_shadow, 2.2)
+	draw_line(Vector2(inner_rect.position.x + inner_rect.size.x, inner_rect.position.y), Vector2(inner_rect.position.x + inner_rect.size.x, inner_rect.position.y + inner_rect.size.y), stone_bevel_shadow, 2.2)
+
+	# 5. 石の表面テクスチャ (彫り込みクラック & 斑点)
+	var crack_pts: Array[Vector2] = [
+		center_pos + Vector2(-half_w * 0.45, -half_h * 0.4),
+		center_pos + Vector2(-half_w * 0.1, -half_h * 0.05),
+		center_pos + Vector2(half_w * 0.15, -half_h * 0.3),
+		center_pos + Vector2(half_w * 0.5, half_h * 0.45)
+	]
+	for i in range(crack_pts.size() - 1):
+		draw_line(crack_pts[i], crack_pts[i+1], Color(0.18, 0.20, 0.25, 0.85), 2.0)
+		draw_line(crack_pts[i] + Vector2(1.0, 1.0), crack_pts[i+1] + Vector2(1.0, 1.0), Color(0.88, 0.92, 0.98, 0.55), 1.2)
+
+	# 小さな窪み
+	draw_circle(center_pos + Vector2(-half_w * 0.35, half_h * 0.35), 2.0, Color(0.24, 0.27, 0.33, 0.75))
+	draw_circle(center_pos + Vector2(half_w * 0.32, -half_h * 0.35), 1.6, Color(0.24, 0.27, 0.33, 0.75))

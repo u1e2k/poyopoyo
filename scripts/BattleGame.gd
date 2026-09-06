@@ -423,9 +423,12 @@ func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -
 		draw_string(ThemeDB.fallback_font, Vector2(fx + 12, fy - 24), "SAFE (0)", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, GameConstants.COLOR_TEXT_MUTED)
 
 func _draw_garbage_tray(x: float, y: float, count: int) -> void:
-	# お邪魔ぷよアイコン (シルバー球体)
-	draw_circle(Vector2(x + 10, y), 8, Color(0.72, 0.76, 0.84))
-	draw_circle(Vector2(x + 8, y - 2), 3, Color(1, 1, 1, 0.8))
+	# お邪魔予告アイコン (四角い石ブロック)
+	var icon_rect = Rect2(x + 2, y - 8, 16, 16)
+	draw_rect(icon_rect, Color(0.28, 0.30, 0.36))
+	draw_rect(Rect2(x + 3.5, y - 6.5, 13, 13), Color(0.56, 0.60, 0.68))
+	draw_line(Vector2(x + 3.5, y - 6.5), Vector2(x + 16.5, y - 6.5), Color(0.82, 0.86, 0.94), 1.5)
+	draw_line(Vector2(x + 3.5, y - 6.5), Vector2(x + 3.5, y + 6.5), Color(0.82, 0.86, 0.94), 1.5)
 	draw_string(ThemeDB.fallback_font, Vector2(x + 26, y + 6), "× %d" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.98, 0.35, 0.45))
 
 func _draw_center_info() -> void:
@@ -457,6 +460,11 @@ func _draw_center_info() -> void:
 ## -------------------------------------------------------------
 func _draw_battle_puyo(center_pos: Vector2, type: int, pl: BattlePlayer, col: int = -1, row: int = -1, is_clearing: bool = false, custom_scale: Vector2 = Vector2.ONE) -> void:
 	if type == GameConstants.PuyoType.EMPTY:
+		return
+
+	# お邪魔ぷよは四角い石ブロックとして描画
+	if type == GameConstants.PuyoType.GARBAGE:
+		_draw_stone_block(center_pos, CELL_SIZE, is_clearing, custom_scale, col, row)
 		return
 
 	var base_col: Color = GameConstants.PUYO_COLORS.get(type, Color.WHITE)
@@ -578,4 +586,56 @@ func _draw_particles_and_rings() -> void:
 		var alpha = p["life"] / p["max_life"]
 		var col = Color(p["color"].r, p["color"].g, p["color"].b, alpha)
 		draw_circle(p["pos"], p["size"] * alpha, col)
-		draw_circle(p["pos"] + Vector2(-1, -1), p["size"] * alpha * 0.4, Color(1, 1, 1, alpha * 0.9))
+
+## -------------------------------------------------------------
+## 四角い石ブロック (お邪魔ぷよ) 描画
+## -------------------------------------------------------------
+func _draw_stone_block(center_pos: Vector2, size: float, is_clearing: bool = false, custom_scale: Vector2 = Vector2.ONE, col: int = -1, row: int = -1) -> void:
+	var half_w = (size * 0.5 - 1.5) * custom_scale.x
+	var half_h = (size * 0.5 - 1.5) * custom_scale.y
+
+	# 1. 影 (ドロップシャドウ)
+	var shadow_rect = Rect2(center_pos.x - half_w, center_pos.y - half_h + 2.5, half_w * 2.0, half_h * 2.0)
+	draw_rect(shadow_rect, Color(0, 0, 0, 0.32))
+
+	# 石の色設定
+	var stone_dark = Color(0.24, 0.26, 0.32)       # 外枠・底面シャドウ
+	var stone_body = Color(0.55, 0.58, 0.65)       # 石表面ベース
+	var stone_light = Color(0.84, 0.88, 0.95)      # 上部面取りハイライト
+	var stone_bevel_shadow = Color(0.34, 0.37, 0.44) # 下部面取り
+
+	if is_clearing:
+		if int(game_time * 24.0) % 2 == 0:
+			stone_body = Color(0.96, 0.96, 1.0)
+			stone_light = Color(1.0, 1.0, 1.0)
+
+	# 2. 外枠・アンダーシャドウ
+	var base_rect = Rect2(center_pos.x - half_w, center_pos.y - half_h, half_w * 2.0, half_h * 2.0)
+	draw_rect(base_rect, stone_dark)
+
+	# 3. メイン石ブロックボディ (少し内側)
+	var inner_rect = Rect2(center_pos.x - half_w + 1.5, center_pos.y - half_h + 1.5, (half_w - 1.5) * 2.0, (half_h - 1.5) * 2.0)
+	draw_rect(inner_rect, stone_body)
+
+	# 4. 立体的な石の面取り (Bevel edges)
+	# 上面・左面ハイライトライン
+	draw_line(Vector2(inner_rect.position.x, inner_rect.position.y), Vector2(inner_rect.position.x + inner_rect.size.x, inner_rect.position.y), stone_light, 1.8)
+	draw_line(Vector2(inner_rect.position.x, inner_rect.position.y), Vector2(inner_rect.position.x, inner_rect.position.y + inner_rect.size.y), stone_light, 1.8)
+	# 下面・右面シャドウライン
+	draw_line(Vector2(inner_rect.position.x, inner_rect.position.y + inner_rect.size.y), Vector2(inner_rect.position.x + inner_rect.size.x, inner_rect.position.y + inner_rect.size.y), stone_bevel_shadow, 1.8)
+	draw_line(Vector2(inner_rect.position.x + inner_rect.size.x, inner_rect.position.y), Vector2(inner_rect.position.x + inner_rect.size.x, inner_rect.position.y + inner_rect.size.y), stone_bevel_shadow, 1.8)
+
+	# 5. 石の表面テクスチャ (彫り込みクラック & 斑点)
+	var crack_pts: Array[Vector2] = [
+		center_pos + Vector2(-half_w * 0.45, -half_h * 0.4),
+		center_pos + Vector2(-half_w * 0.1, -half_h * 0.05),
+		center_pos + Vector2(half_w * 0.15, -half_h * 0.3),
+		center_pos + Vector2(half_w * 0.5, half_h * 0.45)
+	]
+	for i in range(crack_pts.size() - 1):
+		draw_line(crack_pts[i], crack_pts[i+1], Color(0.18, 0.20, 0.25, 0.85), 1.6)
+		draw_line(crack_pts[i] + Vector2(0.8, 0.8), crack_pts[i+1] + Vector2(0.8, 0.8), Color(0.88, 0.92, 0.98, 0.55), 1.0)
+
+	# 小さな窪み
+	draw_circle(center_pos + Vector2(-half_w * 0.35, half_h * 0.35), 1.5, Color(0.24, 0.27, 0.33, 0.75))
+	draw_circle(center_pos + Vector2(half_w * 0.32, -half_h * 0.35), 1.2, Color(0.24, 0.27, 0.33, 0.75))
