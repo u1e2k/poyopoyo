@@ -2,6 +2,7 @@ class_name TitleScreen
 extends Control
 
 @onready var start_button: Button = $VBoxContainer/StartButton
+@onready var vs_button: Button = $VBoxContainer/VsButton
 @onready var quit_button: Button = $VBoxContainer/QuitButton
 @onready var hiscore_label: Label = $HiScoreLabel
 
@@ -9,11 +10,17 @@ var anim_time: float = 0.0
 
 func _ready() -> void:
 	start_button.pressed.connect(_on_start_pressed)
+	vs_button.pressed.connect(_on_vs_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
 
+	# 3ボタンのフォーカスループ
 	start_button.focus_neighbor_top = start_button.get_path_to(quit_button)
-	start_button.focus_neighbor_bottom = start_button.get_path_to(quit_button)
-	quit_button.focus_neighbor_top = quit_button.get_path_to(start_button)
+	start_button.focus_neighbor_bottom = start_button.get_path_to(vs_button)
+
+	vs_button.focus_neighbor_top = vs_button.get_path_to(start_button)
+	vs_button.focus_neighbor_bottom = vs_button.get_path_to(quit_button)
+
+	quit_button.focus_neighbor_top = quit_button.get_path_to(vs_button)
 	quit_button.focus_neighbor_bottom = quit_button.get_path_to(start_button)
 
 	start_button.call_deferred("grab_focus")
@@ -25,6 +32,9 @@ func _process(delta: float) -> void:
 
 func _on_start_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/MainGame.tscn")
+
+func _on_vs_pressed() -> void:
+	get_tree().change_scene_to_file("res://scenes/BattleGame.tscn")
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
@@ -117,7 +127,6 @@ func _draw() -> void:
 			draw_circle(left_eye, pupil_r, Color(0.10, 0.12, 0.18))
 			draw_circle(right_eye, pupil_r, Color(0.10, 0.12, 0.18))
 
-			# キャッチライト
 			draw_circle(left_eye + Vector2(-pupil_r * 0.35, -pupil_r * 0.35), pupil_r * 0.4, Color.WHITE)
 			draw_circle(right_eye + Vector2(-pupil_r * 0.35, -pupil_r * 0.35), pupil_r * 0.4, Color.WHITE)
 			draw_circle(left_eye + Vector2(pupil_r * 0.3, pupil_r * 0.3), pupil_r * 0.2, Color.WHITE)

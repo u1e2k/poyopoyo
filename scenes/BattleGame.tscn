@@ -1,0 +1,122 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/BattleGame.gd" id="1_battle"]
+[ext_resource type="PackedScene" path="res://scenes/PauseMenu.tscn" id="2_pause"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_result_bg"]
+bg_color = Color(0.10, 0.12, 0.18, 0.96)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.98, 0.82, 0.15, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.6)
+shadow_size = 20
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_focus"]
+bg_color = Color(0.24, 0.35, 0.65, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.98, 0.82, 0.15, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="BattleGame" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_battle")
+
+[node name="PauseMenu" parent="." instance=ExtResource("2_pause")]
+visible = false
+layout_mode = 1
+
+[node name="ResultPanel" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -170.0
+offset_top = -180.0
+offset_right = 170.0
+offset_bottom = 180.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_result_bg")
+
+[node name="ResultTitle" type="Label" parent="ResultPanel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 20.0
+offset_bottom = 60.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.98, 0.82, 0.15, 1)
+theme_override_font_sizes/font_size = 30
+text = "YOU WIN!!"
+horizontal_alignment = 1
+
+[node name="P1Score" type="Label" parent="ResultPanel"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 80.0
+offset_right = 300.0
+offset_bottom = 108.0
+theme_override_colors/font_color = Color(0.95, 0.96, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "1P SCORE: 0000000"
+horizontal_alignment = 1
+
+[node name="CPUScore" type="Label" parent="ResultPanel"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 115.0
+offset_right = 300.0
+offset_bottom = 143.0
+theme_override_colors/font_color = Color(0.96, 0.40, 0.45, 1)
+theme_override_font_sizes/font_size = 18
+text = "CPU SCORE: 0000000"
+horizontal_alignment = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ResultPanel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -120.0
+offset_top = 0.0
+offset_right = 120.0
+offset_bottom = 140.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="RetryButton" type="Button" parent="ResultPanel/VBoxContainer"]
+custom_minimum_size = Vector2(240, 46)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_styles/focus = SubResource("StyleBoxFlat_btn_focus")
+text = "RETRY (A BUTTON)"
+
+[node name="TitleButton" type="Button" parent="ResultPanel/VBoxContainer"]
+custom_minimum_size = Vector2(240, 46)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_styles/focus = SubResource("StyleBoxFlat_btn_focus")
+text = "TITLE SCREEN"
