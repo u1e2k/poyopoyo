@@ -1,0 +1,21 @@
+# Godot 4 固有のキャッシュおよびインポートデータ
+.godot/
+
+# ビルド出力
+build/
+*.apk
+*.aab
+*.exe
+*.zip
+*.tar.gz
+*.tpk
+
+# エディタおよび環境固有ファイル
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+
+# 一時的な検証用ファイル
+screen_*.png
+screen_*.png.import
