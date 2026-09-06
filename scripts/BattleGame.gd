@@ -22,6 +22,10 @@ var is_game_active: bool = false
 var is_demo: bool = false
 var demo_end_timer: float = 0.0
 
+# パーティクル & エフェクト
+var active_particles: Array = []
+var active_rings: Array = []
+
 # UIノード参照
 @onready var pause_menu: PauseMenu = $PauseMenu
 @onready var result_panel: Panel = $ResultPanel
@@ -64,6 +68,9 @@ func _ready() -> void:
 	p1.garbage_sent.connect(_on_p1_send_garbage)
 	p2.garbage_sent.connect(_on_p2_send_garbage)
 
+	p1.clear_popped.connect(_on_p1_popped)
+	p2.clear_popped.connect(_on_p2_popped)
+
 	p1.player_died.connect(_on_p1_died)
 	p2.player_died.connect(_on_p2_died)
 
@@ -84,7 +91,6 @@ func _ready() -> void:
 	start_match()
 
 func _input(event: InputEvent) -> void:
-	# デモプレイ中に何かボタン・キーが押されたら即座にタイトルへ復帰
 	if is_demo and event.is_pressed():
 		get_viewport().set_input_as_handled()
 		_on_back_to_title()
@@ -95,28 +101,95 @@ func _process(delta: float) -> void:
 		if banner_timer > 0.0:
 			banner_timer -= delta
 
+		_update_effects(delta)
+
 		if is_game_active:
 			p1.process_turn(delta)
 			p2.process_turn(delta)
 		elif is_demo:
-			# デモ決着後、2.5秒で自動的にタイトルへ戻る
 			demo_end_timer += delta
 			if demo_end_timer >= 2.5:
 				_on_back_to_title()
 
 	queue_redraw()
 
+func _update_effects(delta: float) -> void:
+	var i = active_particles.size() - 1
+	while i >= 0:
+		var p = active_particles[i]
+		p["pos"] += p["vel"] * delta
+		p["vel"].y += 340.0 * delta
+		p["vel"].x *= 0.96
+		p["life"] -= delta
+		if p["life"] <= 0.0:
+			active_particles.remove_at(i)
+		i -= 1
+
+	var j = active_rings.size() - 1
+	while j >= 0:
+		var r = active_rings[j]
+		r["life"] -= delta
+		var t = 1.0 - (r["life"] / r["max_life"])
+		r["radius"] = lerp(3.0, r["max_radius"], t)
+		if r["life"] <= 0.0:
+			active_rings.remove_at(j)
+		j -= 1
+
 func start_match() -> void:
 	result_panel.visible = false
 	banner_text = ""
 	banner_timer = 0.0
 	demo_end_timer = 0.0
+	active_particles.clear()
+	active_rings.clear()
 	is_game_active = true
 	input_handler.is_enabled = not is_demo
 	input_handler.reset_state()
 
 	p1.init_game()
 	p2.init_game()
+
+## -------------------------------------------------------------
+## 消去ポップ & パーティクル生成
+## -------------------------------------------------------------
+func _on_p1_popped(cleared_cells: Array, cell_types: Dictionary, chain_count: int) -> void:
+	_spawn_pop_effects(P1_FIELD_X, P1_FIELD_Y, cleared_cells, cell_types, chain_count)
+
+func _on_p2_popped(cleared_cells: Array, cell_types: Dictionary, chain_count: int) -> void:
+	_spawn_pop_effects(P2_FIELD_X, P2_FIELD_Y, cleared_cells, cell_types, chain_count)
+
+func _spawn_pop_effects(fx: float, fy: float, cleared_cells: Array, cell_types: Dictionary, chain_count: int) -> void:
+	for cell in cleared_cells:
+		var center = Vector2(fx + (cell.x + 0.5) * CELL_SIZE, fy + (cell.y - 1 + 0.5) * CELL_SIZE)
+		var type = cell_types.get(cell, GameConstants.PuyoType.RED)
+		var color = GameConstants.PUYO_COLORS.get(type, Color.WHITE)
+		var highlight = GameConstants.PUYO_HIGHLIGHT_COLORS.get(type, Color.WHITE)
+
+		# 衝撃波リング
+		active_rings.append({
+			"pos": center,
+			"radius": 4.0,
+			"max_radius": 22.0,
+			"color": highlight,
+			"life": 0.25,
+			"max_life": 0.25
+		})
+
+		# スプラッシュ粒子
+		var count = 6 + (chain_count * 2)
+		for i in range(count):
+			var angle = (TAU / count) * i + randf_range(-0.3, 0.3)
+			var speed = randf_range(70.0, 160.0)
+			var vel = Vector2(cos(angle), sin(angle)) * speed
+			var p_col = color if (i % 2 == 0) else highlight
+			active_particles.append({
+				"pos": center + Vector2(randf_range(-3, 3), randf_range(-3, 3)),
+				"vel": vel,
+				"color": p_col,
+				"size": randf_range(2.5, 4.5),
+				"life": randf_range(0.20, 0.38),
+				"max_life": 0.38
+			})
 
 ## -------------------------------------------------------------
 ## お邪魔ぷよ送信 & 相殺 (Offsetting) ロジック
@@ -217,10 +290,9 @@ func _on_back_to_title() -> void:
 	get_tree().change_scene_to_file("res://scenes/TitleScreen.tscn")
 
 ## -------------------------------------------------------------
-## 描画 (2画面対戦レイアウト & デモ演出)
+## 描画 (2画面対戦レイアウト & デモ演出 & パーティクル)
 ## -------------------------------------------------------------
 func _draw() -> void:
-	# 全体背景
 	draw_rect(Rect2(0, 0, 720, 720), GameConstants.COLOR_BG)
 
 	# 上部ヘッダー
@@ -235,17 +307,18 @@ func _draw() -> void:
 	draw_string(ThemeDB.fallback_font, Vector2(300, 32), center_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, GameConstants.COLOR_TEXT_ACCENT)
 	draw_string(ThemeDB.fallback_font, Vector2(600, 32), p2_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.96, 0.40, 0.45))
 
-	# 勝敗数表示
 	var win_str = "%d  -  %d" % [p1_wins, cpu_wins]
 	draw_string(ThemeDB.fallback_font, Vector2(330, 80), win_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, GameConstants.COLOR_TEXT_PRIMARY)
 
-	# 1Pフィールド描画
+	# 1P & CPUフィールド描画
 	_draw_player_field(p1, P1_FIELD_X, P1_FIELD_Y, p1_label)
-	# CPUフィールド描画
 	_draw_player_field(p2, P2_FIELD_X, P2_FIELD_Y, p2_label)
 
-	# 中央情報 (NEXT & お邪魔予告)
+	# 中央情報
 	_draw_center_info()
+
+	# パーティクル & ショックウェーブ描画
+	_draw_particles_and_rings()
 
 	# バナー描画
 	if banner_timer > 0.0 and banner_text != "":
@@ -255,7 +328,7 @@ func _draw() -> void:
 		draw_rect(center_rect, Color(0.98, 0.82, 0.15, alpha), false, 2.0)
 		draw_string(ThemeDB.fallback_font, Vector2(210, 352), banner_text, HORIZONTAL_ALIGNMENT_CENTER, 300, 20, Color(1, 0.95, 0.4, alpha))
 
-	# 下部操作ガイド (デモプレイ時は点滅で「PRESS ANY BUTTON」)
+	# 下部操作ガイド
 	if is_demo:
 		var blink = sin(game_time * 5.0) > 0.0
 		var guide_col = GameConstants.COLOR_TEXT_ACCENT if blink else Color(0.6, 0.6, 0.7)
@@ -284,11 +357,19 @@ func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -
 			var type = pl.grid_model.get_cell(c, r)
 			if type != GameConstants.PuyoType.EMPTY:
 				var center = Vector2(fx + (c + 0.5) * CELL_SIZE, fy + (r - 1 + 0.5) * CELL_SIZE)
-				var is_clearing = false
-				if pl.current_state == BattlePlayer.State.CLEAR_ANIM and pl.last_cleared_info.has("cleared_cells"):
-					if Vector2i(c, r) in pl.last_cleared_info["cleared_cells"]:
-						is_clearing = true
-				_draw_mini_puyo(center, type, is_clearing)
+				_draw_mini_puyo(center, type, false)
+
+	# 消去中ぷよの膨張・振動・痛がり目描画 (アニメーション前半)
+	if pl.current_state == BattlePlayer.State.CLEAR_ANIM and pl.last_cleared_info.has("cleared_cells"):
+		if pl.clear_anim_progress < 0.45:
+			var p_t = pl.clear_anim_progress / 0.45
+			var pop_scale = 1.0 + sin(p_t * PI * 0.5) * 0.28
+			var shake = Vector2(sin(game_time * 60.0) * 1.2, cos(game_time * 60.0) * 1.2)
+
+			for cell in pl.last_cleared_info["cleared_cells"]:
+				var cell_type = pl.last_cleared_info.get("cell_types", {}).get(cell, GameConstants.PuyoType.RED)
+				var center = Vector2(fx + (cell.x + 0.5) * CELL_SIZE, fy + (cell.y - 1 + 0.5) * CELL_SIZE) + shake
+				_draw_mini_puyo(center, cell_type, true, pop_scale)
 
 	# 上空から落下中のお邪魔ぷよ描画
 	for g in pl.active_falling_garbage:
@@ -342,29 +423,50 @@ func _draw_center_info() -> void:
 		_draw_mini_puyo(Vector2(452, 165), n2["child"])
 		_draw_mini_puyo(Vector2(452, 205), n2["pivot"])
 
-func _draw_mini_puyo(center_pos: Vector2, type: int, is_clearing: bool = false) -> void:
+func _draw_mini_puyo(center_pos: Vector2, type: int, is_clearing: bool = false, scale_factor: float = 1.0) -> void:
 	if type == GameConstants.PuyoType.EMPTY:
 		return
 
 	var base_col = GameConstants.PUYO_COLORS.get(type, Color.WHITE)
 	var shadow_col = GameConstants.PUYO_SHADOW_COLORS.get(type, Color(0.2, 0.2, 0.2))
+	var highlight_col = GameConstants.PUYO_HIGHLIGHT_COLORS.get(type, Color.WHITE)
 
-	var r = (CELL_SIZE / 2.0) - 1.5
+	var r = ((CELL_SIZE / 2.0) - 1.5) * scale_factor
 	if is_clearing:
-		base_col = Color.WHITE
-		r *= 1.1
+		if int(game_time * 24.0) % 2 == 0:
+			base_col = highlight_col
 
 	draw_circle(center_pos + Vector2(0, 2), r * 0.9, Color(0, 0, 0, 0.25))
 	draw_circle(center_pos, r, shadow_col)
 	draw_circle(center_pos + Vector2(0, -1), r - 1.0, base_col)
 	draw_circle(center_pos + Vector2(-r * 0.35, -r * 0.35), r * 0.3, Color(1, 1, 1, 0.8))
 
-	if type != GameConstants.PuyoType.GARBAGE and not is_clearing:
+	if type != GameConstants.PuyoType.GARBAGE:
 		var eye_w = r * 0.25
 		var left_eye = center_pos + Vector2(-r * 0.35, -r * 0.05)
 		var right_eye = center_pos + Vector2(r * 0.35, -r * 0.05)
 
-		draw_circle(left_eye, eye_w, Color.WHITE)
-		draw_circle(right_eye, eye_w, Color.WHITE)
-		draw_circle(left_eye + Vector2(0.5, 0.5), eye_w * 0.6, Color(0.1, 0.1, 0.15))
-		draw_circle(right_eye + Vector2(0.5, 0.5), eye_w * 0.6, Color(0.1, 0.1, 0.15))
+		if is_clearing:
+			# 消去時の「＞＜」目
+			var sz = eye_w * 1.1
+			draw_line(left_eye + Vector2(-sz, -sz), left_eye + Vector2(sz * 0.4, 0), Color(0.12, 0.12, 0.18), 2.0)
+			draw_line(left_eye + Vector2(sz * 0.4, 0), left_eye + Vector2(-sz, sz), Color(0.12, 0.12, 0.18), 2.0)
+			draw_line(right_eye + Vector2(sz, -sz), right_eye + Vector2(-sz * 0.4, 0), Color(0.12, 0.12, 0.18), 2.0)
+			draw_line(right_eye + Vector2(-sz * 0.4, 0), right_eye + Vector2(sz, sz), Color(0.12, 0.12, 0.18), 2.0)
+		else:
+			draw_circle(left_eye, eye_w, Color.WHITE)
+			draw_circle(right_eye, eye_w, Color.WHITE)
+			draw_circle(left_eye + Vector2(0.5, 0.5), eye_w * 0.6, Color(0.1, 0.1, 0.15))
+			draw_circle(right_eye + Vector2(0.5, 0.5), eye_w * 0.6, Color(0.1, 0.1, 0.15))
+
+func _draw_particles_and_rings() -> void:
+	for r in active_rings:
+		var alpha = r["life"] / r["max_life"]
+		var col = Color(r["color"].r, r["color"].g, r["color"].b, alpha * 0.85)
+		draw_arc(r["pos"], r["radius"], 0, TAU, 18, col, 2.0)
+
+	for p in active_particles:
+		var alpha = p["life"] / p["max_life"]
+		var col = Color(p["color"].r, p["color"].g, p["color"].b, alpha)
+		draw_circle(p["pos"], p["size"] * alpha, col)
+		draw_circle(p["pos"] + Vector2(-0.8, -0.8), p["size"] * alpha * 0.4, Color(1, 1, 1, alpha * 0.9))

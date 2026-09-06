@@ -3,6 +3,7 @@ extends Node
 
 signal garbage_sent(amount: int)
 signal player_died
+signal clear_popped(cleared_cells: Array, cell_types: Dictionary, chain_count: int)
 
 enum PlayerType { HUMAN, CPU }
 enum State {
@@ -290,6 +291,8 @@ func _process_drop_free(delta: float) -> void:
 	if state_timer >= GameConstants.DROP_ANIM_DURATION:
 		_start_match_check()
 
+var pop_emitted: bool = false
+
 func _start_match_check() -> void:
 	current_state = State.MATCH_CHECK
 	var match_result = grid_model.check_and_clear_matches()
@@ -307,6 +310,7 @@ func _start_match_check() -> void:
 		current_state = State.CLEAR_ANIM
 		state_timer = 0.0
 		clear_anim_progress = 0.0
+		pop_emitted = false
 	else:
 		if total_chain_score > 0:
 			var garbage_to_send = total_chain_score / 70
@@ -321,8 +325,18 @@ func _start_match_check() -> void:
 
 func _process_clear_anim(delta: float) -> void:
 	state_timer += delta
-	clear_anim_progress = min(1.0, state_timer / 0.40)
-	if state_timer >= 0.40:
+	clear_anim_progress = min(1.0, state_timer / 0.42)
+
+	if clear_anim_progress >= 0.45 and not pop_emitted:
+		pop_emitted = true
+		if last_cleared_info.has("cleared_cells"):
+			clear_popped.emit(
+				last_cleared_info["cleared_cells"],
+				last_cleared_info.get("cell_types", {}),
+				current_chain
+			)
+
+	if state_timer >= 0.42:
 		last_cleared_info.clear()
 		_start_drop_free()
 
