@@ -33,7 +33,6 @@ var active_rings: Array = []
 @onready var result_panel: Panel = $ResultPanel
 @onready var result_title: Label = $ResultPanel/ResultTitle
 @onready var result_score_p1: Label = $ResultPanel/P1Score
-@onready var result_score_cpu: Label = $ResultPanel/CPUScore
 @onready var retry_button: Button = $ResultPanel/VBoxContainer/RetryButton
 @onready var title_button: Button = $ResultPanel/VBoxContainer/TitleButton
 
@@ -251,8 +250,7 @@ func _show_result(title_str: String, col: Color) -> void:
 	input_handler.is_enabled = false
 	result_title.text = title_str
 	result_title.add_theme_color_override("font_color", col)
-	result_score_p1.text = "1P SCORE: %07d" % p1.score
-	result_score_cpu.text = "CPU SCORE: %07d" % p2.score
+	result_score_p1.text = "SCORE: %07d" % p1.score
 	result_panel.visible = true
 	retry_button.call_deferred("grab_focus")
 
@@ -409,8 +407,9 @@ func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -
 			var c_center = Vector2(fx + (c_pos.x + 0.5) * CELL_SIZE, fy + (c_pos.y - 1 + 0.5) * CELL_SIZE)
 			_draw_battle_puyo(c_center, pl.child_type, pl, -1, -1, false, fall_scale)
 
-	# スコア表示
-	draw_string(ThemeDB.fallback_font, Vector2(fx, fy + FIELD_H + 28), "%07d" % pl.score, HORIZONTAL_ALIGNMENT_LEFT, int(FIELD_W), 20, GameConstants.COLOR_TEXT_PRIMARY)
+	# スコア表示 (1Pのみ表示、CPU側やデモプレイ時は非表示にして画面をすっきりさせる)
+	if pl == p1 and not is_demo:
+		draw_string(ThemeDB.fallback_font, Vector2(fx, fy + FIELD_H + 28), "SCORE  %07d" % pl.score, HORIZONTAL_ALIGNMENT_LEFT, int(FIELD_W), 18, GameConstants.COLOR_TEXT_PRIMARY)
 
 	# お邪魔予告表示トレイ (頭上)
 	var g_box = Rect2(fx, fy - 48, FIELD_W, 36)
