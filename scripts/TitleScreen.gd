@@ -6,9 +6,14 @@ extends Control
 @onready var quit_button: Button = $VBoxContainer/QuitButton
 @onready var hiscore_label: Label = $HiScoreLabel
 
+const DEMO_TRIGGER_TIME: float = 8.0
 var anim_time: float = 0.0
+var idle_timer: float = 0.0
 
 func _ready() -> void:
+	GameConstants.is_demo_mode = false
+	idle_timer = 0.0
+
 	start_button.pressed.connect(_on_start_pressed)
 	vs_button.pressed.connect(_on_vs_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
@@ -26,14 +31,29 @@ func _ready() -> void:
 	start_button.call_deferred("grab_focus")
 	_display_hiscore()
 
+func _input(event: InputEvent) -> void:
+	# 入力があればアイドルタイマーをリセット
+	if event.is_pressed():
+		idle_timer = 0.0
+
 func _process(delta: float) -> void:
 	anim_time += delta
+	idle_timer += delta
+
+	# 8秒間無操作でCPU vs CPUデモ対戦を開始
+	if idle_timer >= DEMO_TRIGGER_TIME:
+		GameConstants.is_demo_mode = true
+		get_tree().change_scene_to_file("res://scenes/BattleGame.tscn")
+		return
+
 	queue_redraw()
 
 func _on_start_pressed() -> void:
+	GameConstants.is_demo_mode = false
 	get_tree().change_scene_to_file("res://scenes/MainGame.tscn")
 
 func _on_vs_pressed() -> void:
+	GameConstants.is_demo_mode = false
 	get_tree().change_scene_to_file("res://scenes/BattleGame.tscn")
 
 func _on_quit_pressed() -> void:

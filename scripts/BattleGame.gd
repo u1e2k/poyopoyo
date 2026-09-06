@@ -19,6 +19,8 @@ var cpu_wins: int = 0
 
 var game_time: float = 0.0
 var is_game_active: bool = false
+var is_demo: bool = false
+var demo_end_timer: float = 0.0
 
 # UIノード参照
 @onready var pause_menu: PauseMenu = $PauseMenu
@@ -36,20 +38,23 @@ var banner_timer: float = 0.0
 func _ready() -> void:
 	randomize()
 
+	is_demo = GameConstants.is_demo_mode
+
 	# 入力ハンドラー
 	input_handler = InputHandler.new()
 	add_child(input_handler)
 
-	input_handler.move_left_pressed.connect(_on_p1_move_left)
-	input_handler.move_right_pressed.connect(_on_p1_move_right)
-	input_handler.rotate_left_pressed.connect(_on_p1_rotate_left)
-	input_handler.rotate_right_pressed.connect(_on_p1_rotate_right)
-	input_handler.hard_drop_pressed.connect(_on_p1_hard_drop)
-	input_handler.pause_pressed.connect(_on_pause_requested)
+	if not is_demo:
+		input_handler.move_left_pressed.connect(_on_p1_move_left)
+		input_handler.move_right_pressed.connect(_on_p1_move_right)
+		input_handler.rotate_left_pressed.connect(_on_p1_rotate_left)
+		input_handler.rotate_right_pressed.connect(_on_p1_rotate_right)
+		input_handler.hard_drop_pressed.connect(_on_p1_hard_drop)
+		input_handler.pause_pressed.connect(_on_pause_requested)
 
-	# プレイヤー生成
+	# プレイヤー生成 (デモ時はP1もCPU AIに設定)
 	p1 = BattlePlayer.new()
-	p1.player_type = BattlePlayer.PlayerType.HUMAN
+	p1.player_type = BattlePlayer.PlayerType.CPU if is_demo else BattlePlayer.PlayerType.HUMAN
 	add_child(p1)
 
 	p2 = BattlePlayer.new()
@@ -78,6 +83,12 @@ func _ready() -> void:
 	result_panel.visible = false
 	start_match()
 
+func _input(event: InputEvent) -> void:
+	# デモプレイ中に何かボタン・キーが押されたら即座にタイトルへ復帰
+	if is_demo and event.is_pressed():
+		get_viewport().set_input_as_handled()
+		_on_back_to_title()
+
 func _process(delta: float) -> void:
 	if not get_tree().paused:
 		game_time += delta
@@ -87,6 +98,11 @@ func _process(delta: float) -> void:
 		if is_game_active:
 			p1.process_turn(delta)
 			p2.process_turn(delta)
+		elif is_demo:
+			# デモ決着後、2.5秒で自動的にタイトルへ戻る
+			demo_end_timer += delta
+			if demo_end_timer >= 2.5:
+				_on_back_to_title()
 
 	queue_redraw()
 
@@ -94,8 +110,9 @@ func start_match() -> void:
 	result_panel.visible = false
 	banner_text = ""
 	banner_timer = 0.0
+	demo_end_timer = 0.0
 	is_game_active = true
-	input_handler.is_enabled = true
+	input_handler.is_enabled = not is_demo
 	input_handler.reset_state()
 
 	p1.init_game()
@@ -112,7 +129,8 @@ func _on_p1_send_garbage(amount: int) -> void:
 
 	if amount > 0:
 		p2.pending_garbage += amount
-		_show_banner("1P: %d GARBAGE!" % amount)
+		var sender_name = "CPU 1" if is_demo else "1P"
+		_show_banner("%s: %d GARBAGE!" % [sender_name, amount])
 
 func _on_p2_send_garbage(amount: int) -> void:
 	if p2.pending_garbage > 0:
@@ -122,7 +140,8 @@ func _on_p2_send_garbage(amount: int) -> void:
 
 	if amount > 0:
 		p1.pending_garbage += amount
-		_show_banner("CPU: %d GARBAGE!" % amount)
+		var sender_name = "CPU 2" if is_demo else "CPU"
+		_show_banner("%s: %d GARBAGE!" % [sender_name, amount])
 
 func _show_banner(txt: String) -> void:
 	banner_text = txt
@@ -136,14 +155,22 @@ func _on_p1_died() -> void:
 		return
 	is_game_active = false
 	cpu_wins += 1
-	_show_result("YOU LOSE...", Color(0.96, 0.26, 0.35))
+
+	if is_demo:
+		_show_banner("CPU 2 WIN!!")
+	else:
+		_show_result("YOU LOSE...", Color(0.96, 0.26, 0.35))
 
 func _on_p2_died() -> void:
 	if not is_game_active:
 		return
 	is_game_active = false
 	p1_wins += 1
-	_show_result("YOU WIN!!", Color(0.98, 0.82, 0.15))
+
+	if is_demo:
+		_show_banner("CPU 1 WIN!!")
+	else:
+		_show_result("YOU WIN!!", Color(0.98, 0.82, 0.15))
 
 func _show_result(title_str: String, col: Color) -> void:
 	input_handler.is_enabled = false
@@ -158,38 +185,39 @@ func _show_result(title_str: String, col: Color) -> void:
 ## 1P コントローラー入力
 ## -------------------------------------------------------------
 func _on_p1_move_left() -> void:
-	if is_game_active:
+	if is_game_active and not is_demo:
 		p1.move_left()
 
 func _on_p1_move_right() -> void:
-	if is_game_active:
+	if is_game_active and not is_demo:
 		p1.move_right()
 
 func _on_p1_rotate_left() -> void:
-	if is_game_active:
+	if is_game_active and not is_demo:
 		p1.rotate_left()
 
 func _on_p1_rotate_right() -> void:
-	if is_game_active:
+	if is_game_active and not is_demo:
 		p1.rotate_right()
 
 func _on_p1_hard_drop() -> void:
-	if is_game_active:
+	if is_game_active and not is_demo:
 		p1.hard_drop()
 
 func _on_pause_requested() -> void:
-	if is_game_active:
+	if is_game_active and not is_demo:
 		pause_menu.open_menu()
 
 func _on_pause_resume() -> void:
 	pass
 
 func _on_back_to_title() -> void:
+	GameConstants.is_demo_mode = false
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/TitleScreen.tscn")
 
 ## -------------------------------------------------------------
-## 描画 (2画面対戦レイアウト)
+## 描画 (2画面対戦レイアウト & デモ演出)
 ## -------------------------------------------------------------
 func _draw() -> void:
 	# 全体背景
@@ -198,18 +226,23 @@ func _draw() -> void:
 	# 上部ヘッダー
 	draw_rect(Rect2(0, 0, 720, 50), Color(0.06, 0.07, 0.10))
 	draw_line(Vector2(0, 50), Vector2(720, 50), GameConstants.COLOR_PANEL_BORDER, 2.0)
-	draw_string(ThemeDB.fallback_font, Vector2(24, 32), "1P (YOU)", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, GameConstants.COLOR_TEXT_PRIMARY)
-	draw_string(ThemeDB.fallback_font, Vector2(310, 32), "VS CPU", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, GameConstants.COLOR_TEXT_ACCENT)
-	draw_string(ThemeDB.fallback_font, Vector2(610, 32), "CPU (AI)", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.96, 0.40, 0.45))
+
+	var p1_label = "CPU 1 (AI)" if is_demo else "1P (YOU)"
+	var center_label = "DEMO PLAY" if is_demo else "VS CPU"
+	var p2_label = "CPU 2 (AI)" if is_demo else "CPU (AI)"
+
+	draw_string(ThemeDB.fallback_font, Vector2(24, 32), p1_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, GameConstants.COLOR_TEXT_PRIMARY)
+	draw_string(ThemeDB.fallback_font, Vector2(300, 32), center_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, GameConstants.COLOR_TEXT_ACCENT)
+	draw_string(ThemeDB.fallback_font, Vector2(600, 32), p2_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.96, 0.40, 0.45))
 
 	# 勝敗数表示
 	var win_str = "%d  -  %d" % [p1_wins, cpu_wins]
 	draw_string(ThemeDB.fallback_font, Vector2(330, 80), win_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, GameConstants.COLOR_TEXT_PRIMARY)
 
 	# 1Pフィールド描画
-	_draw_player_field(p1, P1_FIELD_X, P1_FIELD_Y, "1P FIELD")
+	_draw_player_field(p1, P1_FIELD_X, P1_FIELD_Y, p1_label)
 	# CPUフィールド描画
-	_draw_player_field(p2, P2_FIELD_X, P2_FIELD_Y, "CPU FIELD")
+	_draw_player_field(p2, P2_FIELD_X, P2_FIELD_Y, p2_label)
 
 	# 中央情報 (NEXT & お邪魔予告)
 	_draw_center_info()
@@ -222,16 +255,19 @@ func _draw() -> void:
 		draw_rect(center_rect, Color(0.98, 0.82, 0.15, alpha), false, 2.0)
 		draw_string(ThemeDB.fallback_font, Vector2(210, 352), banner_text, HORIZONTAL_ALIGNMENT_CENTER, 300, 20, Color(1, 0.95, 0.4, alpha))
 
-	# 下部操作ガイド
-	draw_string(ThemeDB.fallback_font, Vector2(0, 690), "D-Pad: Move / Down: Drop / A, B: Rotate / START: Pause", HORIZONTAL_ALIGNMENT_CENTER, 720, 14, GameConstants.COLOR_TEXT_MUTED)
+	# 下部操作ガイド (デモプレイ時は点滅で「PRESS ANY BUTTON」)
+	if is_demo:
+		var blink = sin(game_time * 5.0) > 0.0
+		var guide_col = GameConstants.COLOR_TEXT_ACCENT if blink else Color(0.6, 0.6, 0.7)
+		draw_string(ThemeDB.fallback_font, Vector2(0, 690), "- PRESS ANY BUTTON TO TITLE -", HORIZONTAL_ALIGNMENT_CENTER, 720, 16, guide_col)
+	else:
+		draw_string(ThemeDB.fallback_font, Vector2(0, 690), "D-Pad: Move / Down: Drop / A, B: Rotate / START: Pause", HORIZONTAL_ALIGNMENT_CENTER, 720, 14, GameConstants.COLOR_TEXT_MUTED)
 
 func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -> void:
-	# フィールド背景
 	var f_rect = Rect2(fx, fy, FIELD_W, FIELD_H)
 	draw_rect(f_rect, GameConstants.COLOR_FIELD_BG)
 	draw_rect(f_rect, GameConstants.COLOR_FIELD_BORDER, false, 3.0)
 
-	# グリッド線
 	for c in range(1, GameConstants.COLS):
 		var x = fx + c * CELL_SIZE
 		draw_line(Vector2(x, fy), Vector2(x, fy + FIELD_H), GameConstants.COLOR_GRID_LINE, 1.0)
@@ -239,11 +275,10 @@ func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -
 		var y = fy + r * CELL_SIZE
 		draw_line(Vector2(fx, y), Vector2(fx + FIELD_W, y), GameConstants.COLOR_GRID_LINE, 1.0)
 
-	# 窒息警告線
 	var choke_x = fx + GameConstants.SPAWN_COL * CELL_SIZE
 	draw_line(Vector2(choke_x, fy), Vector2(choke_x + CELL_SIZE, fy), Color(0.96, 0.26, 0.35, 0.8), 2.5)
 
-	# 確定ぷよ描画 (落下完了済み)
+	# 確定ぷよ描画
 	for c in range(GameConstants.COLS):
 		for r in range(1, GameConstants.ROWS):
 			var type = pl.grid_model.get_cell(c, r)
@@ -284,8 +319,11 @@ func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -
 		draw_string(ThemeDB.fallback_font, Vector2(fx + 8, fy - 18), "SAFE", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, GameConstants.COLOR_TEXT_MUTED)
 
 func _draw_center_info() -> void:
+	var p1_next_label = "CPU 1" if is_demo else "1P NEXT"
+	var p2_next_label = "CPU 2" if is_demo else "CPU NEXT"
+
 	# 1P NEXT
-	draw_string(ThemeDB.fallback_font, Vector2(235, 120), "1P NEXT", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, GameConstants.COLOR_TEXT_PRIMARY)
+	draw_string(ThemeDB.fallback_font, Vector2(235, 120), p1_next_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, GameConstants.COLOR_TEXT_PRIMARY)
 	var n1_box = Rect2(230, 130, 75, 120)
 	draw_rect(n1_box, GameConstants.COLOR_PANEL_BG)
 	draw_rect(n1_box, GameConstants.COLOR_PANEL_BORDER, false, 1.5)
@@ -295,7 +333,7 @@ func _draw_center_info() -> void:
 		_draw_mini_puyo(Vector2(267, 205), n["pivot"])
 
 	# CPU NEXT
-	draw_string(ThemeDB.fallback_font, Vector2(415, 120), "CPU NEXT", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.40, 0.45))
+	draw_string(ThemeDB.fallback_font, Vector2(415, 120), p2_next_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.40, 0.45))
 	var n2_box = Rect2(415, 130, 75, 120)
 	draw_rect(n2_box, GameConstants.COLOR_PANEL_BG)
 	draw_rect(n2_box, GameConstants.COLOR_PANEL_BORDER, false, 1.5)
@@ -310,26 +348,17 @@ func _draw_mini_puyo(center_pos: Vector2, type: int, is_clearing: bool = false) 
 
 	var base_col = GameConstants.PUYO_COLORS.get(type, Color.WHITE)
 	var shadow_col = GameConstants.PUYO_SHADOW_COLORS.get(type, Color(0.2, 0.2, 0.2))
-	var highlight_col = GameConstants.PUYO_HIGHLIGHT_COLORS.get(type, Color.WHITE)
 
 	var r = (CELL_SIZE / 2.0) - 1.5
 	if is_clearing:
 		base_col = Color.WHITE
 		r *= 1.1
 
-	# ドロップシャドウ
 	draw_circle(center_pos + Vector2(0, 2), r * 0.9, Color(0, 0, 0, 0.25))
-
-	# 外枠/シャドウ
 	draw_circle(center_pos, r, shadow_col)
-
-	# メインボディ
 	draw_circle(center_pos + Vector2(0, -1), r - 1.0, base_col)
-
-	# グロス光沢
 	draw_circle(center_pos + Vector2(-r * 0.35, -r * 0.35), r * 0.3, Color(1, 1, 1, 0.8))
 
-	# 目
 	if type != GameConstants.PuyoType.GARBAGE and not is_clearing:
 		var eye_w = r * 0.25
 		var left_eye = center_pos + Vector2(-r * 0.35, -r * 0.05)

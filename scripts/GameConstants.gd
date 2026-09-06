@@ -101,3 +101,7 @@ const COLOR_BONUS = [0, 0, 3, 6, 12, 24]  # 1色=0, 2色=3, 3色=6, 4色=12
 
 ## 保存ファイルパス
 const SAVE_PATH = "user://highscore.save"
+
+## デモモードフラグ (CPU vs CPU)
+static var is_demo_mode: bool = false
+
