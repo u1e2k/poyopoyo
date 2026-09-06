@@ -54,6 +54,8 @@ var ai_decision_made: bool = false
 # アニメーション用
 var last_cleared_info: Dictionary = {}
 var clear_anim_progress: float = 0.0
+var active_drops: Array = []
+var drop_anim_progress: float = 0.0
 var is_alive: bool = true
 
 # お邪魔ぷよ落下アニメーション用
@@ -280,15 +282,18 @@ func _lock_active_pair() -> void:
 
 func _start_drop_free() -> void:
 	current_state = State.DROP_FREE
-	var drops = grid_model.apply_gravity()
-	if drops.size() > 0:
+	active_drops = grid_model.apply_gravity()
+	if active_drops.size() > 0:
 		state_timer = 0.0
+		drop_anim_progress = 0.0
 	else:
 		_start_match_check()
 
 func _process_drop_free(delta: float) -> void:
 	state_timer += delta
+	drop_anim_progress = min(1.0, state_timer / GameConstants.DROP_ANIM_DURATION)
 	if state_timer >= GameConstants.DROP_ANIM_DURATION:
+		active_drops.clear()
 		_start_match_check()
 
 var pop_emitted: bool = false

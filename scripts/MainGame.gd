@@ -546,12 +546,27 @@ func _draw_grid_field() -> void:
 	draw_line(Vector2(choke_x, GameConstants.FIELD_Y), Vector2(choke_x + GameConstants.CELL_SIZE, GameConstants.FIELD_Y), Color(0.96, 0.26, 0.35, 0.8), 3.0)
 
 func _draw_placed_puyos() -> void:
+	# 自由落下中の移動ぷよマッピング
+	var falling_map: Dictionary = {}
+	if current_state == State.DROP_FREE and active_drops.size() > 0:
+		var ease_t = drop_anim_progress * drop_anim_progress # 重力加速カーブ
+		for d in active_drops:
+			falling_map[Vector2i(d["col"], d["to_row"])] = lerp(float(d["from_row"]), float(d["to_row"]), ease_t)
+
 	for c in range(GameConstants.COLS):
 		for r in range(1, GameConstants.ROWS):
 			var type = grid_model.get_cell(c, r)
 			if type != GameConstants.PuyoType.EMPTY:
-				var pos = _grid_to_screen(c, r)
-				_draw_single_puyo(pos, type, c, r, false)
+				var cell_key = Vector2i(c, r)
+				if falling_map.has(cell_key):
+					var interp_row = falling_map[cell_key]
+					var x = GameConstants.FIELD_X + (c + 0.5) * GameConstants.CELL_SIZE
+					var y = GameConstants.FIELD_Y + (interp_row - 1 + 0.5) * GameConstants.CELL_SIZE
+					# 落下中はわずかに縦長にストレッチ
+					_draw_single_puyo(Vector2(x, y), type, c, r, false, Vector2(0.94, 1.06))
+				else:
+					var pos = _grid_to_screen(c, r)
+					_draw_single_puyo(pos, type, c, r, false)
 
 func _draw_clearing_puyos() -> void:
 	if current_state != State.CLEAR_ANIM or not last_cleared_info.has("cleared_cells"):

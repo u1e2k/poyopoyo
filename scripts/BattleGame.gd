@@ -1,13 +1,15 @@
 class_name BattleGame
 extends Control
 
-const CELL_SIZE: float = 26.0
-const P1_FIELD_X: float = 44.0
-const P1_FIELD_Y: float = 180.0
-const P2_FIELD_X: float = 520.0
-const P2_FIELD_Y: float = 180.0
-const FIELD_W: float = 156.0  # 6 * 26
-const FIELD_H: float = 312.0  # 12 * 26
+# レイアウト定数 (720x720解像度に最適化した大迫力・高視認性レイアウト)
+const CELL_SIZE: float = 34.0
+const FIELD_W: float = 204.0  # 6 * 34 = 204
+const FIELD_H: float = 408.0  # 12 * 34 = 408
+
+const P1_FIELD_X: float = 24.0
+const P1_FIELD_Y: float = 190.0
+const P2_FIELD_X: float = 492.0
+const P2_FIELD_Y: float = 190.0
 
 var p1: BattlePlayer
 var p2: BattlePlayer
@@ -56,7 +58,7 @@ func _ready() -> void:
 		input_handler.hard_drop_pressed.connect(_on_p1_hard_drop)
 		input_handler.pause_pressed.connect(_on_pause_requested)
 
-	# プレイヤー生成 (デモ時はP1もCPU AIに設定)
+	# プレイヤー生成
 	p1 = BattlePlayer.new()
 	p1.player_type = BattlePlayer.PlayerType.CPU if is_demo else BattlePlayer.PlayerType.HUMAN
 	add_child(p1)
@@ -118,7 +120,7 @@ func _update_effects(delta: float) -> void:
 	while i >= 0:
 		var p = active_particles[i]
 		p["pos"] += p["vel"] * delta
-		p["vel"].y += 340.0 * delta
+		p["vel"].y += 360.0 * delta
 		p["vel"].x *= 0.96
 		p["life"] -= delta
 		if p["life"] <= 0.0:
@@ -130,7 +132,7 @@ func _update_effects(delta: float) -> void:
 		var r = active_rings[j]
 		r["life"] -= delta
 		var t = 1.0 - (r["life"] / r["max_life"])
-		r["radius"] = lerp(3.0, r["max_radius"], t)
+		r["radius"] = lerp(4.0, r["max_radius"], t)
 		if r["life"] <= 0.0:
 			active_rings.remove_at(j)
 		j -= 1
@@ -168,27 +170,27 @@ func _spawn_pop_effects(fx: float, fy: float, cleared_cells: Array, cell_types: 
 		# 衝撃波リング
 		active_rings.append({
 			"pos": center,
-			"radius": 4.0,
-			"max_radius": 22.0,
+			"radius": 5.0,
+			"max_radius": 28.0,
 			"color": highlight,
 			"life": 0.25,
 			"max_life": 0.25
 		})
 
 		# スプラッシュ粒子
-		var count = 6 + (chain_count * 2)
+		var count = 7 + (chain_count * 2)
 		for i in range(count):
 			var angle = (TAU / count) * i + randf_range(-0.3, 0.3)
-			var speed = randf_range(70.0, 160.0)
+			var speed = randf_range(80.0, 180.0)
 			var vel = Vector2(cos(angle), sin(angle)) * speed
 			var p_col = color if (i % 2 == 0) else highlight
 			active_particles.append({
-				"pos": center + Vector2(randf_range(-3, 3), randf_range(-3, 3)),
+				"pos": center + Vector2(randf_range(-4, 4), randf_range(-4, 4)),
 				"vel": vel,
 				"color": p_col,
-				"size": randf_range(2.5, 4.5),
-				"life": randf_range(0.20, 0.38),
-				"max_life": 0.38
+				"size": randf_range(3.0, 5.5),
+				"life": randf_range(0.22, 0.40),
+				"max_life": 0.40
 			})
 
 ## -------------------------------------------------------------
@@ -290,31 +292,33 @@ func _on_back_to_title() -> void:
 	get_tree().change_scene_to_file("res://scenes/TitleScreen.tscn")
 
 ## -------------------------------------------------------------
-## 描画 (2画面対戦レイアウト & デモ演出 & パーティクル)
+## 描画 (大迫力・見やすい2画面対戦レイアウト)
 ## -------------------------------------------------------------
 func _draw() -> void:
 	draw_rect(Rect2(0, 0, 720, 720), GameConstants.COLOR_BG)
 
-	# 上部ヘッダー
-	draw_rect(Rect2(0, 0, 720, 50), Color(0.06, 0.07, 0.10))
-	draw_line(Vector2(0, 50), Vector2(720, 50), GameConstants.COLOR_PANEL_BORDER, 2.0)
+	# 上部ヘッダー帯
+	draw_rect(Rect2(0, 0, 720, 48), Color(0.06, 0.07, 0.10))
+	draw_line(Vector2(0, 48), Vector2(720, 48), GameConstants.COLOR_PANEL_BORDER, 2.0)
 
 	var p1_label = "CPU 1 (AI)" if is_demo else "1P (YOU)"
-	var center_label = "DEMO PLAY" if is_demo else "VS CPU"
+	var center_label = "DEMO PLAY" if is_demo else "VS CPU BATTLE"
 	var p2_label = "CPU 2 (AI)" if is_demo else "CPU (AI)"
 
 	draw_string(ThemeDB.fallback_font, Vector2(24, 32), p1_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, GameConstants.COLOR_TEXT_PRIMARY)
-	draw_string(ThemeDB.fallback_font, Vector2(300, 32), center_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, GameConstants.COLOR_TEXT_ACCENT)
-	draw_string(ThemeDB.fallback_font, Vector2(600, 32), p2_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.96, 0.40, 0.45))
+	draw_string(ThemeDB.fallback_font, Vector2(270, 32), center_label, HORIZONTAL_ALIGNMENT_CENTER, 180, 18, GameConstants.COLOR_TEXT_ACCENT)
+	draw_string(ThemeDB.fallback_font, Vector2(580, 32), p2_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.96, 0.40, 0.45))
 
+	# 勝敗数表示
 	var win_str = "%d  -  %d" % [p1_wins, cpu_wins]
-	draw_string(ThemeDB.fallback_font, Vector2(330, 80), win_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, GameConstants.COLOR_TEXT_PRIMARY)
+	draw_string(ThemeDB.fallback_font, Vector2(300, 95), win_str, HORIZONTAL_ALIGNMENT_CENTER, 120, 32, GameConstants.COLOR_TEXT_PRIMARY)
+	draw_string(ThemeDB.fallback_font, Vector2(300, 122), "WINS", HORIZONTAL_ALIGNMENT_CENTER, 120, 13, GameConstants.COLOR_TEXT_MUTED)
 
 	# 1P & CPUフィールド描画
 	_draw_player_field(p1, P1_FIELD_X, P1_FIELD_Y, p1_label)
 	_draw_player_field(p2, P2_FIELD_X, P2_FIELD_Y, p2_label)
 
-	# 中央情報
+	# 中央情報 (NEXT)
 	_draw_center_info()
 
 	# パーティクル & ショックウェーブ描画
@@ -323,24 +327,26 @@ func _draw() -> void:
 	# バナー描画
 	if banner_timer > 0.0 and banner_text != "":
 		var alpha = min(1.0, banner_timer / 0.3)
-		var center_rect = Rect2(200, 320, 320, 50)
-		draw_rect(center_rect, Color(0.05, 0.08, 0.15, 0.9 * alpha))
-		draw_rect(center_rect, Color(0.98, 0.82, 0.15, alpha), false, 2.0)
-		draw_string(ThemeDB.fallback_font, Vector2(210, 352), banner_text, HORIZONTAL_ALIGNMENT_CENTER, 300, 20, Color(1, 0.95, 0.4, alpha))
+		var center_rect = Rect2(180, 340, 360, 56)
+		draw_rect(center_rect, Color(0.04, 0.06, 0.12, 0.92 * alpha))
+		draw_rect(center_rect, Color(0.98, 0.82, 0.15, alpha), false, 2.5)
+		draw_string(ThemeDB.fallback_font, Vector2(190, 375), banner_text, HORIZONTAL_ALIGNMENT_CENTER, 340, 22, Color(1, 0.95, 0.4, alpha))
 
-	# 下部操作ガイド
+	# 下部フッター
 	if is_demo:
 		var blink = sin(game_time * 5.0) > 0.0
 		var guide_col = GameConstants.COLOR_TEXT_ACCENT if blink else Color(0.6, 0.6, 0.7)
-		draw_string(ThemeDB.fallback_font, Vector2(0, 690), "- PRESS ANY BUTTON TO TITLE -", HORIZONTAL_ALIGNMENT_CENTER, 720, 16, guide_col)
+		draw_string(ThemeDB.fallback_font, Vector2(0, 698), "- PRESS ANY BUTTON TO TITLE -", HORIZONTAL_ALIGNMENT_CENTER, 720, 16, guide_col)
 	else:
-		draw_string(ThemeDB.fallback_font, Vector2(0, 690), "D-Pad: Move / Down: Drop / A, B: Rotate / START: Pause", HORIZONTAL_ALIGNMENT_CENTER, 720, 14, GameConstants.COLOR_TEXT_MUTED)
+		draw_string(ThemeDB.fallback_font, Vector2(0, 698), "D-Pad: Move / Down: Drop / A, B: Rotate / START: Pause", HORIZONTAL_ALIGNMENT_CENTER, 720, 14, GameConstants.COLOR_TEXT_MUTED)
 
 func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -> void:
+	# フィールド背景パネル
 	var f_rect = Rect2(fx, fy, FIELD_W, FIELD_H)
 	draw_rect(f_rect, GameConstants.COLOR_FIELD_BG)
 	draw_rect(f_rect, GameConstants.COLOR_FIELD_BORDER, false, 3.0)
 
+	# グリッド線
 	for c in range(1, GameConstants.COLS):
 		var x = fx + c * CELL_SIZE
 		draw_line(Vector2(x, fy), Vector2(x, fy + FIELD_H), GameConstants.COLOR_GRID_LINE, 1.0)
@@ -348,125 +354,229 @@ func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -
 		var y = fy + r * CELL_SIZE
 		draw_line(Vector2(fx, y), Vector2(fx + FIELD_W, y), GameConstants.COLOR_GRID_LINE, 1.0)
 
+	# 窒息警告線
 	var choke_x = fx + GameConstants.SPAWN_COL * CELL_SIZE
-	draw_line(Vector2(choke_x, fy), Vector2(choke_x + CELL_SIZE, fy), Color(0.96, 0.26, 0.35, 0.8), 2.5)
+	draw_line(Vector2(choke_x, fy), Vector2(choke_x + CELL_SIZE, fy), Color(0.96, 0.26, 0.35, 0.8), 3.0)
 
-	# 確定ぷよ描画
+	# 自由落下中の補間マッピング
+	var falling_map: Dictionary = {}
+	if pl.current_state == BattlePlayer.State.DROP_FREE and pl.active_drops.size() > 0:
+		var ease_t = pl.drop_anim_progress * pl.drop_anim_progress
+		for d in pl.active_drops:
+			falling_map[Vector2i(d["col"], d["to_row"])] = lerp(float(d["from_row"]), float(d["to_row"]), ease_t)
+
+	# 確定ぷよ描画 (同色連結・質感・落下補間付き)
 	for c in range(GameConstants.COLS):
 		for r in range(1, GameConstants.ROWS):
 			var type = pl.grid_model.get_cell(c, r)
 			if type != GameConstants.PuyoType.EMPTY:
-				var center = Vector2(fx + (c + 0.5) * CELL_SIZE, fy + (r - 1 + 0.5) * CELL_SIZE)
-				_draw_mini_puyo(center, type, false)
+				var cell_key = Vector2i(c, r)
+				if falling_map.has(cell_key):
+					var interp_row = falling_map[cell_key]
+					var center = Vector2(fx + (c + 0.5) * CELL_SIZE, fy + (interp_row - 1 + 0.5) * CELL_SIZE)
+					_draw_battle_puyo(center, type, pl, c, r, false, Vector2(0.94, 1.06))
+				else:
+					var center = Vector2(fx + (c + 0.5) * CELL_SIZE, fy + (r - 1 + 0.5) * CELL_SIZE)
+					_draw_battle_puyo(center, type, pl, c, r, false)
 
 	# 消去中ぷよの膨張・振動・痛がり目描画 (アニメーション前半)
 	if pl.current_state == BattlePlayer.State.CLEAR_ANIM and pl.last_cleared_info.has("cleared_cells"):
 		if pl.clear_anim_progress < 0.45:
 			var p_t = pl.clear_anim_progress / 0.45
 			var pop_scale = 1.0 + sin(p_t * PI * 0.5) * 0.28
-			var shake = Vector2(sin(game_time * 60.0) * 1.2, cos(game_time * 60.0) * 1.2)
+			var shake = Vector2(sin(game_time * 60.0) * 1.5, cos(game_time * 60.0) * 1.5)
 
 			for cell in pl.last_cleared_info["cleared_cells"]:
 				var cell_type = pl.last_cleared_info.get("cell_types", {}).get(cell, GameConstants.PuyoType.RED)
 				var center = Vector2(fx + (cell.x + 0.5) * CELL_SIZE, fy + (cell.y - 1 + 0.5) * CELL_SIZE) + shake
-				_draw_mini_puyo(center, cell_type, true, pop_scale)
+				_draw_battle_puyo(center, cell_type, pl, cell.x, cell.y, true, Vector2(pop_scale, pop_scale))
 
 	# 上空から落下中のお邪魔ぷよ描画
 	for g in pl.active_falling_garbage:
 		if not g["is_landed"] and g["delay"] <= 0.0:
 			var center = Vector2(fx + (g["col"] + 0.5) * CELL_SIZE, fy + g["current_y"])
-			_draw_mini_puyo(center, GameConstants.PuyoType.GARBAGE, false)
+			_draw_battle_puyo(center, GameConstants.PuyoType.GARBAGE, pl, -1, -1, false, Vector2(0.92, 1.08))
 
 	# 操作中ツモ描画
 	if pl.pivot_type != GameConstants.PuyoType.EMPTY:
 		var c_pos = pl.pivot_pos + GameConstants.DIR_OFFSETS[pl.child_dir]
+		var fall_scale = Vector2(0.96, 1.04) if not pl.is_grounded else Vector2(1.06, 0.94)
+
 		if pl.pivot_pos.y >= 1:
 			var p_center = Vector2(fx + (pl.pivot_pos.x + 0.5) * CELL_SIZE, fy + (pl.pivot_pos.y - 1 + 0.5) * CELL_SIZE)
-			_draw_mini_puyo(p_center, pl.pivot_type, false)
+			_draw_battle_puyo(p_center, pl.pivot_type, pl, -1, -1, false, fall_scale)
 		if c_pos.y >= 1:
 			var c_center = Vector2(fx + (c_pos.x + 0.5) * CELL_SIZE, fy + (c_pos.y - 1 + 0.5) * CELL_SIZE)
-			_draw_mini_puyo(c_center, pl.child_type, false)
+			_draw_battle_puyo(c_center, pl.child_type, pl, -1, -1, false, fall_scale)
 
 	# スコア表示
-	draw_string(ThemeDB.fallback_font, Vector2(fx, fy + FIELD_H + 26), "%07d" % pl.score, HORIZONTAL_ALIGNMENT_LEFT, int(FIELD_W), 18, GameConstants.COLOR_TEXT_PRIMARY)
+	draw_string(ThemeDB.fallback_font, Vector2(fx, fy + FIELD_H + 28), "%07d" % pl.score, HORIZONTAL_ALIGNMENT_LEFT, int(FIELD_W), 20, GameConstants.COLOR_TEXT_PRIMARY)
 
-	# お邪魔予告表示（頭上）
-	var g_box = Rect2(fx, fy - 40, FIELD_W, 30)
-	draw_rect(g_box, Color(0.12, 0.14, 0.20, 0.7))
-	draw_rect(g_box, GameConstants.COLOR_PANEL_BORDER, false, 1.0)
+	# お邪魔予告表示トレイ (頭上)
+	var g_box = Rect2(fx, fy - 48, FIELD_W, 36)
+	draw_rect(g_box, Color(0.12, 0.15, 0.22, 0.9))
+	draw_rect(g_box, GameConstants.COLOR_PANEL_BORDER, false, 1.5)
+
 	if pl.pending_garbage > 0:
-		draw_string(ThemeDB.fallback_font, Vector2(fx + 8, fy - 18), "⚠ %d" % pl.pending_garbage, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.96, 0.35, 0.40))
+		# 予告お邪魔アイコン & 数値
+		_draw_garbage_tray(fx + 8, fy - 30, pl.pending_garbage)
 	else:
-		draw_string(ThemeDB.fallback_font, Vector2(fx + 8, fy - 18), "SAFE", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, GameConstants.COLOR_TEXT_MUTED)
+		draw_string(ThemeDB.fallback_font, Vector2(fx + 12, fy - 24), "SAFE (0)", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, GameConstants.COLOR_TEXT_MUTED)
+
+func _draw_garbage_tray(x: float, y: float, count: int) -> void:
+	# お邪魔ぷよアイコン (シルバー球体)
+	draw_circle(Vector2(x + 10, y), 8, Color(0.72, 0.76, 0.84))
+	draw_circle(Vector2(x + 8, y - 2), 3, Color(1, 1, 1, 0.8))
+	draw_string(ThemeDB.fallback_font, Vector2(x + 26, y + 6), "× %d" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.98, 0.35, 0.45))
 
 func _draw_center_info() -> void:
 	var p1_next_label = "CPU 1" if is_demo else "1P NEXT"
 	var p2_next_label = "CPU 2" if is_demo else "CPU NEXT"
 
-	# 1P NEXT
-	draw_string(ThemeDB.fallback_font, Vector2(235, 120), p1_next_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, GameConstants.COLOR_TEXT_PRIMARY)
-	var n1_box = Rect2(230, 130, 75, 120)
+	# 1P NEXT (中央左: X=240〜330)
+	draw_string(ThemeDB.fallback_font, Vector2(244, 180), p1_next_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, GameConstants.COLOR_TEXT_PRIMARY)
+	var n1_box = Rect2(240, 192, 90, 140)
 	draw_rect(n1_box, GameConstants.COLOR_PANEL_BG)
-	draw_rect(n1_box, GameConstants.COLOR_PANEL_BORDER, false, 1.5)
+	draw_rect(n1_box, GameConstants.COLOR_PANEL_BORDER, false, 2.0)
 	if p1.next_queue.size() > 0:
 		var n = p1.next_queue[0]
-		_draw_mini_puyo(Vector2(267, 165), n["child"])
-		_draw_mini_puyo(Vector2(267, 205), n["pivot"])
+		_draw_battle_puyo(Vector2(285, 235), n["child"], null, -1, -1, false)
+		_draw_battle_puyo(Vector2(285, 285), n["pivot"], null, -1, -1, false)
 
-	# CPU NEXT
-	draw_string(ThemeDB.fallback_font, Vector2(415, 120), p2_next_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.40, 0.45))
-	var n2_box = Rect2(415, 130, 75, 120)
+	# CPU NEXT (中央右: X=390〜480)
+	draw_string(ThemeDB.fallback_font, Vector2(394, 180), p2_next_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.40, 0.45))
+	var n2_box = Rect2(390, 192, 90, 140)
 	draw_rect(n2_box, GameConstants.COLOR_PANEL_BG)
-	draw_rect(n2_box, GameConstants.COLOR_PANEL_BORDER, false, 1.5)
+	draw_rect(n2_box, GameConstants.COLOR_PANEL_BORDER, false, 2.0)
 	if p2.next_queue.size() > 0:
 		var n2 = p2.next_queue[0]
-		_draw_mini_puyo(Vector2(452, 165), n2["child"])
-		_draw_mini_puyo(Vector2(452, 205), n2["pivot"])
+		_draw_battle_puyo(Vector2(435, 235), n2["child"], null, -1, -1, false)
+		_draw_battle_puyo(Vector2(435, 285), n2["pivot"], null, -1, -1, false)
 
-func _draw_mini_puyo(center_pos: Vector2, type: int, is_clearing: bool = false, scale_factor: float = 1.0) -> void:
+## -------------------------------------------------------------
+## 質感・同色連結・目つき付きのバトルぷよ描画
+## -------------------------------------------------------------
+func _draw_battle_puyo(center_pos: Vector2, type: int, pl: BattlePlayer, col: int = -1, row: int = -1, is_clearing: bool = false, custom_scale: Vector2 = Vector2.ONE) -> void:
 	if type == GameConstants.PuyoType.EMPTY:
 		return
 
-	var base_col = GameConstants.PUYO_COLORS.get(type, Color.WHITE)
-	var shadow_col = GameConstants.PUYO_SHADOW_COLORS.get(type, Color(0.2, 0.2, 0.2))
-	var highlight_col = GameConstants.PUYO_HIGHLIGHT_COLORS.get(type, Color.WHITE)
+	var base_col: Color = GameConstants.PUYO_COLORS.get(type, Color.WHITE)
+	var shadow_col: Color = GameConstants.PUYO_SHADOW_COLORS.get(type, Color(0.2, 0.2, 0.2))
+	var highlight_col: Color = GameConstants.PUYO_HIGHLIGHT_COLORS.get(type, Color.WHITE)
 
-	var r = ((CELL_SIZE / 2.0) - 1.5) * scale_factor
+	var base_radius = (CELL_SIZE / 2.0) - 1.5
+
+	# 呼吸アニメーション
+	var breath = 0.0
+	if not is_clearing:
+		var phase = (col * 1.3 + row * 0.9) if (col >= 0 and row >= 0) else 0.0
+		breath = sin(game_time * 4.5 + phase) * 0.035
+
+	var rx = base_radius * (1.0 + breath) * custom_scale.x
+	var ry = base_radius * (1.0 - breath) * custom_scale.y
+
 	if is_clearing:
 		if int(game_time * 24.0) % 2 == 0:
 			base_col = highlight_col
 
-	draw_circle(center_pos + Vector2(0, 2), r * 0.9, Color(0, 0, 0, 0.25))
-	draw_circle(center_pos, r, shadow_col)
-	draw_circle(center_pos + Vector2(0, -1), r - 1.0, base_col)
-	draw_circle(center_pos + Vector2(-r * 0.35, -r * 0.35), r * 0.3, Color(1, 1, 1, 0.8))
+	# 1. ドロップシャドウ
+	draw_circle(center_pos + Vector2(0, 2.5), rx * 0.9, Color(0, 0, 0, 0.28))
 
+	# 2. 同色ぷよ同士の有機的ゼリーコネクタ (連結の見える化)
+	if pl != null and col != -1 and row != -1 and not is_clearing and type != GameConstants.PuyoType.GARBAGE:
+		var neighbors = [
+			{"dir": Vector2i(1, 0), "offset": Vector2(CELL_SIZE / 2.0, 0)},
+			{"dir": Vector2i(-1, 0), "offset": Vector2(-CELL_SIZE / 2.0, 0)},
+			{"dir": Vector2i(0, 1), "offset": Vector2(0, CELL_SIZE / 2.0)},
+			{"dir": Vector2i(0, -1), "offset": Vector2(0, -CELL_SIZE / 2.0)}
+		]
+		for n in neighbors:
+			var nc = col + n["dir"].x
+			var nr = row + n["dir"].y
+			if pl.grid_model.is_valid_coord(nc, nr) and pl.grid_model.get_cell(nc, nr) == type:
+				var half_w = 9.0
+				if n["dir"].x != 0:
+					var bridge_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y - half_w, abs(n["offset"].x), half_w * 2)
+					draw_rect(bridge_rect, shadow_col)
+					var inner_rect = Rect2(center_pos.x + min(0, n["offset"].x), center_pos.y - half_w + 1.2, abs(n["offset"].x), (half_w - 1.2) * 2)
+					draw_rect(inner_rect, base_col)
+				elif n["dir"].y != 0:
+					var bridge_rect = Rect2(center_pos.x - half_w, center_pos.y + min(0, n["offset"].y), half_w * 2, abs(n["offset"].y))
+					draw_rect(bridge_rect, shadow_col)
+					var inner_rect = Rect2(center_pos.x - half_w + 1.2, center_pos.y + min(0, n["offset"].y), (half_w - 1.2) * 2, abs(n["offset"].y))
+					draw_rect(inner_rect, base_col)
+
+	# 3. 外枠 / 立体アンダーシャドウ
+	draw_circle(center_pos, rx, shadow_col)
+
+	# 4. メインボディ
+	draw_circle(center_pos + Vector2(0, -1.2), rx - 1.0, base_col)
+
+	# 5. 上部インナーグロー
+	var glow_col = highlight_col
+	glow_col.a = 0.42
+	draw_circle(center_pos + Vector2(0, -ry * 0.35), rx * 0.65, glow_col)
+
+	# 6. 下部リムライト
+	var rim_col = highlight_col
+	rim_col.a = 0.32
+	draw_circle(center_pos + Vector2(0, ry * 0.5), rx * 0.45, rim_col)
+
+	# 7. メイン・スペキュラハイライト
+	var main_spec = center_pos + Vector2(-rx * 0.38, -ry * 0.38)
+	draw_circle(main_spec, rx * 0.28, Color(1, 1, 1, 0.85))
+	draw_circle(main_spec + Vector2(-0.8, -0.8), rx * 0.14, Color(1, 1, 1, 0.95))
+
+	# 8. サブハイライト
+	draw_circle(center_pos + Vector2(rx * 0.4, ry * 0.32), rx * 0.12, Color(1, 1, 1, 0.5))
+
+	# 9. 目 (キャッチライト・まばたき・痛がり目)
 	if type != GameConstants.PuyoType.GARBAGE:
-		var eye_w = r * 0.25
-		var left_eye = center_pos + Vector2(-r * 0.35, -r * 0.05)
-		var right_eye = center_pos + Vector2(r * 0.35, -r * 0.05)
+		var eye_offset_x = rx * 0.34
+		var eye_offset_y = -ry * 0.08
+		var eye_w = rx * 0.24
+
+		var left_eye = center_pos + Vector2(-eye_offset_x, eye_offset_y)
+		var right_eye = center_pos + Vector2(eye_offset_x, eye_offset_y)
 
 		if is_clearing:
-			# 消去時の「＞＜」目
 			var sz = eye_w * 1.1
-			draw_line(left_eye + Vector2(-sz, -sz), left_eye + Vector2(sz * 0.4, 0), Color(0.12, 0.12, 0.18), 2.0)
-			draw_line(left_eye + Vector2(sz * 0.4, 0), left_eye + Vector2(-sz, sz), Color(0.12, 0.12, 0.18), 2.0)
-			draw_line(right_eye + Vector2(sz, -sz), right_eye + Vector2(-sz * 0.4, 0), Color(0.12, 0.12, 0.18), 2.0)
-			draw_line(right_eye + Vector2(-sz * 0.4, 0), right_eye + Vector2(sz, sz), Color(0.12, 0.12, 0.18), 2.0)
+			draw_line(left_eye + Vector2(-sz, -sz), left_eye + Vector2(sz * 0.4, 0), Color(0.12, 0.12, 0.18), 2.2)
+			draw_line(left_eye + Vector2(sz * 0.4, 0), left_eye + Vector2(-sz, sz), Color(0.12, 0.12, 0.18), 2.2)
+			draw_line(right_eye + Vector2(sz, -sz), right_eye + Vector2(-sz * 0.4, 0), Color(0.12, 0.12, 0.18), 2.2)
+			draw_line(right_eye + Vector2(-sz * 0.4, 0), right_eye + Vector2(sz, sz), Color(0.12, 0.12, 0.18), 2.2)
 		else:
-			draw_circle(left_eye, eye_w, Color.WHITE)
-			draw_circle(right_eye, eye_w, Color.WHITE)
-			draw_circle(left_eye + Vector2(0.5, 0.5), eye_w * 0.6, Color(0.1, 0.1, 0.15))
-			draw_circle(right_eye + Vector2(0.5, 0.5), eye_w * 0.6, Color(0.1, 0.1, 0.15))
+			var blink_phase = (col * 2.7 + row * 1.9) if (col >= 0 and row >= 0) else 0.0
+			var is_blinking = sin(game_time * 2.5 + blink_phase) > 0.94
+
+			if is_blinking:
+				draw_arc(left_eye + Vector2(0, 1), eye_w * 0.9, PI * 0.1, PI * 0.9, 8, Color(0.12, 0.12, 0.18), 2.0)
+				draw_arc(right_eye + Vector2(0, 1), eye_w * 0.9, PI * 0.1, PI * 0.9, 8, Color(0.12, 0.12, 0.18), 2.0)
+			else:
+				draw_circle(left_eye + Vector2(0, 0.5), eye_w + 0.8, Color(0.12, 0.14, 0.20))
+				draw_circle(right_eye + Vector2(0, 0.5), eye_w + 0.8, Color(0.12, 0.14, 0.20))
+				draw_circle(left_eye, eye_w, Color.WHITE)
+				draw_circle(right_eye, eye_w, Color.WHITE)
+
+				var pupil_r = eye_w * 0.55
+				var look_offset = Vector2(0.5, 0.5)
+				var left_pupil = left_eye + look_offset
+				var right_pupil = right_eye + look_offset
+
+				draw_circle(left_pupil, pupil_r, Color(0.10, 0.12, 0.18))
+				draw_circle(right_pupil, pupil_r, Color(0.10, 0.12, 0.18))
+
+				draw_circle(left_pupil + Vector2(-pupil_r * 0.35, -pupil_r * 0.35), pupil_r * 0.4, Color.WHITE)
+				draw_circle(right_pupil + Vector2(-pupil_r * 0.35, -pupil_r * 0.35), pupil_r * 0.4, Color.WHITE)
 
 func _draw_particles_and_rings() -> void:
 	for r in active_rings:
 		var alpha = r["life"] / r["max_life"]
 		var col = Color(r["color"].r, r["color"].g, r["color"].b, alpha * 0.85)
-		draw_arc(r["pos"], r["radius"], 0, TAU, 18, col, 2.0)
+		draw_arc(r["pos"], r["radius"], 0, TAU, 20, col, 2.2)
 
 	for p in active_particles:
 		var alpha = p["life"] / p["max_life"]
 		var col = Color(p["color"].r, p["color"].g, p["color"].b, alpha)
 		draw_circle(p["pos"], p["size"] * alpha, col)
-		draw_circle(p["pos"] + Vector2(-0.8, -0.8), p["size"] * alpha * 0.4, Color(1, 1, 1, alpha * 0.9))
+		draw_circle(p["pos"] + Vector2(-1, -1), p["size"] * alpha * 0.4, Color(1, 1, 1, alpha * 0.9))
