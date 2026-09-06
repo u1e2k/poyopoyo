@@ -562,11 +562,11 @@ func _draw_placed_puyos() -> void:
 					var interp_row = falling_map[cell_key]
 					var x = GameConstants.FIELD_X + (c + 0.5) * GameConstants.CELL_SIZE
 					var y = GameConstants.FIELD_Y + (interp_row - 1 + 0.5) * GameConstants.CELL_SIZE
-					# 落下中はわずかに縦長にストレッチ
-					_draw_single_puyo(Vector2(x, y), type, c, r, false, Vector2(0.94, 1.06))
+					# 落下中は着地するまでコネクタを出さない
+					_draw_single_puyo(Vector2(x, y), type, -1, -1, false, Vector2(0.94, 1.06))
 				else:
 					var pos = _grid_to_screen(c, r)
-					_draw_single_puyo(pos, type, c, r, false)
+					_draw_single_puyo(pos, type, c, r, false, Vector2.ONE, falling_map)
 
 func _draw_clearing_puyos() -> void:
 	if current_state != State.CLEAR_ANIM or not last_cleared_info.has("cleared_cells"):
@@ -588,7 +588,7 @@ func _draw_clearing_puyos() -> void:
 ## -------------------------------------------------------------
 ## 単体ぷよのプロシージャル・ジェリー描画
 ## -------------------------------------------------------------
-func _draw_single_puyo(center_pos: Vector2, type: int, col: int = -1, row: int = -1, is_clearing: bool = false, custom_scale: Vector2 = Vector2.ONE) -> void:
+func _draw_single_puyo(center_pos: Vector2, type: int, col: int = -1, row: int = -1, is_clearing: bool = false, custom_scale: Vector2 = Vector2.ONE, falling_map: Dictionary = {}) -> void:
 	if type == GameConstants.PuyoType.EMPTY:
 		return
 
@@ -624,7 +624,7 @@ func _draw_single_puyo(center_pos: Vector2, type: int, col: int = -1, row: int =
 	var shadow_offset = Vector2(0, 3.5)
 	draw_circle(center_pos + shadow_offset, rx * 0.92, Color(0, 0, 0, 0.28))
 
-	# 有機的ゼリーコネクタ (消去中は解除)
+	# 有機的ゼリーコネクタ (消去中や落下中は解除)
 	if col != -1 and row != -1 and not is_clearing:
 		var neighbors = [
 			{"dir": Vector2i(1, 0), "offset": Vector2(GameConstants.CELL_SIZE / 2.0, 0)},
@@ -635,6 +635,9 @@ func _draw_single_puyo(center_pos: Vector2, type: int, col: int = -1, row: int =
 		for n in neighbors:
 			var nc = col + n["dir"].x
 			var nr = row + n["dir"].y
+			# 隣接セルが落下中 (まだ着地していない) ならコネクタを繋がない
+			if falling_map.has(Vector2i(nc, nr)):
+				continue
 			if grid_model.is_valid_coord(nc, nr) and grid_model.get_cell(nc, nr) == type:
 				var half_w = 12.0
 				if n["dir"].x != 0:

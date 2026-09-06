@@ -372,10 +372,11 @@ func _draw_player_field(pl: BattlePlayer, fx: float, fy: float, label: String) -
 				if falling_map.has(cell_key):
 					var interp_row = falling_map[cell_key]
 					var center = Vector2(fx + (c + 0.5) * CELL_SIZE, fy + (interp_row - 1 + 0.5) * CELL_SIZE)
-					_draw_battle_puyo(center, type, pl, c, r, false, Vector2(0.94, 1.06))
+					# 落下中は着地するまでコネクタを出さない
+					_draw_battle_puyo(center, type, pl, -1, -1, false, Vector2(0.94, 1.06))
 				else:
 					var center = Vector2(fx + (c + 0.5) * CELL_SIZE, fy + (r - 1 + 0.5) * CELL_SIZE)
-					_draw_battle_puyo(center, type, pl, c, r, false)
+					_draw_battle_puyo(center, type, pl, c, r, false, Vector2.ONE, falling_map)
 
 	# 消去中ぷよの膨張・振動・痛がり目描画 (アニメーション前半)
 	if pl.current_state == BattlePlayer.State.CLEAR_ANIM and pl.last_cleared_info.has("cleared_cells"):
@@ -458,7 +459,7 @@ func _draw_center_info() -> void:
 ## -------------------------------------------------------------
 ## 質感・同色連結・目つき付きのバトルぷよ描画
 ## -------------------------------------------------------------
-func _draw_battle_puyo(center_pos: Vector2, type: int, pl: BattlePlayer, col: int = -1, row: int = -1, is_clearing: bool = false, custom_scale: Vector2 = Vector2.ONE) -> void:
+func _draw_battle_puyo(center_pos: Vector2, type: int, pl: BattlePlayer, col: int = -1, row: int = -1, is_clearing: bool = false, custom_scale: Vector2 = Vector2.ONE, falling_map: Dictionary = {}) -> void:
 	if type == GameConstants.PuyoType.EMPTY:
 		return
 
@@ -500,6 +501,9 @@ func _draw_battle_puyo(center_pos: Vector2, type: int, pl: BattlePlayer, col: in
 		for n in neighbors:
 			var nc = col + n["dir"].x
 			var nr = row + n["dir"].y
+			# 隣接セルが落下中 (まだ着地していない) ならコネクタを繋がない
+			if falling_map.has(Vector2i(nc, nr)):
+				continue
 			if pl.grid_model.is_valid_coord(nc, nr) and pl.grid_model.get_cell(nc, nr) == type:
 				var half_w = 9.0
 				if n["dir"].x != 0:
