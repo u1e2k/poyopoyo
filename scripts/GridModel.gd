@@ -129,6 +129,24 @@ func check_and_clear_matches() -> Dictionary:
 					all_cleared_cells.append(cell)
 					cell_types[cell] = type
 
+	# 巻き込み消去：消去対象ぷよに隣接するお邪魔ぷよを消去
+	var garbage_to_clear: Array[Vector2i] = []
+	for cell in all_cleared_cells:
+		var neighbors = [
+			Vector2i(cell.x + 1, cell.y),
+			Vector2i(cell.x - 1, cell.y),
+			Vector2i(cell.x, cell.y + 1),
+			Vector2i(cell.x, cell.y - 1)
+		]
+		for n in neighbors:
+			if is_valid_coord(n.x, n.y) and grid[n.x][n.y] == GameConstants.PuyoType.GARBAGE:
+				if n not in garbage_to_clear:
+					garbage_to_clear.append(n)
+
+	for g_cell in garbage_to_clear:
+		all_cleared_cells.append(g_cell)
+		cell_types[g_cell] = GameConstants.PuyoType.GARBAGE
+
 	# 該当セルを盤面から消去
 	for cell in all_cleared_cells:
 		grid[cell.x][cell.y] = GameConstants.PuyoType.EMPTY

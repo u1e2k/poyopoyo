@@ -336,26 +336,30 @@ func _start_garbage_drop() -> void:
 	var drop_amount = min(pending_garbage, 30)
 	pending_garbage -= drop_amount
 
-	# 列に均等に配置
+	# 列のランダム順序で段ごとにお邪魔ぷよを配置
 	var cols_order = [0, 1, 2, 3, 4, 5]
 	cols_order.shuffle()
 
 	var placed = 0
-	while placed < drop_amount:
+	var attempts = 0
+	while placed < drop_amount and attempts < 10:
+		attempts += 1
+		var placed_in_row = false
 		for c in cols_order:
 			if placed >= drop_amount:
 				break
-			# 0段目（最上段）に配置
 			if grid_model.is_empty(c, 0):
 				grid_model.set_cell(c, 0, GameConstants.PuyoType.GARBAGE)
 				placed += 1
-
-	grid_model.apply_gravity()
+				placed_in_row = true
+		grid_model.apply_gravity()
+		if not placed_in_row:
+			break
 
 func _process_garbage_drop(delta: float) -> void:
 	state_timer += delta
 	if state_timer >= 0.25:
-		_transition_to_spawn()
+		_start_match_check()
 
 func _calculate_score(info: Dictionary) -> int:
 	var cleared_count = info["total_cleared"]
